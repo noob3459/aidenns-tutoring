@@ -71,6 +71,14 @@ export default async function handler(req, res) {
   await recordLoginAttempt(supabase, ipHash, ok)
 
   if (!ok) {
+    // TEMPORARY diagnostic (feature branch only) — lengths and deploy
+    // metadata only, never the passcode itself or any derived hash/prefix.
+    console.warn('Admin passcode mismatch', {
+      submittedLength: typeof body.passcode === 'string' ? body.passcode.length : 0,
+      configuredLength: typeof process.env.ADMIN_PASSCODE === 'string' ? process.env.ADMIN_PASSCODE.length : 0,
+      vercelEnvironment: process.env.VERCEL_ENV || 'unknown',
+      vercelGitCommitSha: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
+    })
     return res.status(401).json({ ok: false, error: 'Incorrect passcode.' })
   }
 
