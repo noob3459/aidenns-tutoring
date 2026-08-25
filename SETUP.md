@@ -23,12 +23,33 @@ Then do the real import (step 4 below) under the correct account/team.
 
 1. Create a project at supabase.com (or use an existing one).
 2. Open **SQL Editor** → paste the entire contents of `supabase/schema.sql` from this repo → **Run**.
-   - This creates the `bookings` table, a unique constraint on (date, time) to block double-booking, an index for rate-limiting, and turns on **Row Level Security with zero policies** — meaning the public key can't touch this table at all; only the server can, via the service role key.
+   - This is the **complete schema** — safe whether this is a brand-new project or you already ran an earlier version of this file. Every statement is idempotent (`if not exists` / `or replace`) and nothing drops or destructively rewrites `bookings` — existing booking rows are always preserved.
+   - Creates: `bookings` (original table, unchanged), `site_settings` (editable site copy, auto-seeded with today's defaults on first run), `availability_days` (per-date closed/blackout overrides), `availability_slots` (bookable time slots), `recurring_availability_rules` (weekly templates the admin can generate from), `admin_login_attempts` (rate-limits admin login by a hashed IP — raw IPs are never stored).
+   - Adds two hardened database functions (`claim_slot_and_book`, `update_booking_status`) that only the server can call — never reachable from a browser.
+   - Turns on **Row Level Security with zero policies** on every table — the public key can't touch any of this data; only the server can, via the service role key and the explicit grants in the file.
+   - **No manual data migration is needed** — `site_settings` seeds itself from the file, and `bookings` keeps every existing row exactly as-is.
 3. Go to **Project Settings → API** and copy:
    - **Project URL** → this is `SUPABASE_URL`
    - **service_role secret** (not the `anon public` key) → this is `SUPABASE_SERVICE_ROLE_KEY`
 4. Treat the service_role key like a master password — it bypasses RLS entirely. It only ever goes into Vercel environment variables, never into any file in this repo, never into frontend code.
-5. To confirm a booking later: open **Table Editor → bookings**, find the row, change `status` from `pending` to `confirmed` (or `declined`).
+5. Bookings are now confirmed/declined/completed/cancelled from the **Admin dashboard's Availability tab** (click a date → each booking has action buttons) — you no longer need to hand-edit the Table Editor, though you still can if you prefer.
+
+### 1a. Admin authentication (passcode + secrets)
+
+The admin passcode used during development (`mathrocks26`) appeared in chat and is **compromised — never use it**. Set a brand-new one yourself, directly in Vercel, without typing it anywhere else:
+
+1. Choose a new, strong passcode. Don't tell it to an AI assistant, don't put it in a file, don't commit it — just remember it (or store it in a password manager).
+2. In Vercel: **Project Settings → Environment Variables** → add `ADMIN_PASSCODE` with that value.
+3. Generate two more secrets locally (these are random signing keys, not passwords — safe to generate via command line):
+   ```bash
+   openssl rand -hex 32   # use this value for ADMIN_SESSION_SECRET
+   openssl rand -hex 32   # run again, use this DIFFERENT value for IP_HASH_SECRET
+   ```
+4. Add both to Vercel as `ADMIN_SESSION_SECRET` and `IP_HASH_SECRET`.
+5. Add `ALLOWED_ADMIN_ORIGINS` = `https://aidennstutoring.org,https://www.aidennstutoring.org` (comma-separated, no spaces) — this is a CSRF guard on admin actions; `localhost` and Vercel preview URLs are always allowed automatically, no need to list those.
+6. Add `BOOKING_HORIZON_MONTHS` = `6` (or however many months ahead visitors should be able to book — past dates are never bookable regardless of this value).
+
+All four are **server-only** — none of them are exposed to the browser.
 
 ## 2. Resend (for sending email)
 
@@ -97,10 +118,16 @@ not replacing them.
    | `MAIL_FROM` | `Aidenn’s Tutoring <aidenn@aidennstutoring.org>` |
    | `MAIL_REPLY_TO` | `aidenn@aidennstutoring.org` |
    | `BOOKING_NOTIFICATION_EMAIL` | where you want booking alerts sent (`aidenn@aidennstutoring.org` by default) |
+   | `ADMIN_PASSCODE` | the new passcode you chose in step 1a — type it directly into Vercel, not here |
+   | `ADMIN_SESSION_SECRET` | from step 1a (`openssl rand -hex 32`) |
+   | `IP_HASH_SECRET` | from step 1a (a *different* `openssl rand -hex 32`) |
+   | `ALLOWED_ADMIN_ORIGINS` | `https://aidennstutoring.org,https://www.aidennstutoring.org` |
+   | `BOOKING_HORIZON_MONTHS` | `6` |
 
 5. Click **Deploy**. This creates a preview deployment — nothing goes live on your domain yet.
-6. Test the live preview URL: go through the booking wizard end-to-end, confirm you get the owner notification email and the parent gets the receipt email, and confirm the row shows up in Supabase's Table Editor.
-7. Only promote to Production / attach your domain once you've verified step 6 works.
+6. **Before testing the booking flow, log into `/admin` on the preview URL first** (your new passcode from step 1a) → **Availability** tab → click a few upcoming dates and add some time slots (or set up a recurring weekly rule and generate from it). The public booking calendar only shows dates/times you've explicitly created — nothing is bookable until you do this.
+7. Test the live preview URL: go through the booking wizard end-to-end, confirm you get the owner notification email and the parent gets the receipt email, and confirm the row shows up in Supabase's Table Editor (or the admin dashboard's date view).
+8. Only promote to Production / attach your domain once you've verified step 7 works.
 
 To test locally before pushing: copy `.env.example` to `.env`, fill in real values, run `vercel dev` (requires being logged into the correct Vercel account first — `vercel login`).
 

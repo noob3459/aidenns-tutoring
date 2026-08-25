@@ -1,27 +1,42 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Sigma, Lock, LogOut, ExternalLink, Save, Check, Plus, X,
+  Sigma, Lock, LogOut, ExternalLink, Save, Check, Plus,
   Phone as PhoneIcon, CalendarClock, FileText, AlertTriangle, ShieldAlert,
+  Loader2, Trash2, Archive, RotateCcw, Copy, RefreshCw,
 } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
+import MonthCalendar from '../components/MonthCalendar.jsx'
+import { getPacificCurrentMonth, getPacificTodayISO, formatDayLabel, isValidDateISO } from '../lib/timezone.js'
 
-const ADMIN_PASSCODE = 'mathrocks26'
-const SESSION_KEY = 'aidenns_admin_authed'
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+async function adminFetch(url, options = {}) {
+  const res = await fetch(url, { ...options, credentials: 'same-origin' })
+  const data = await res.json().catch(() => ({ ok: false, error: 'Unexpected server response.' }))
+  return { res, data }
+}
 
 /* ---------------- Login gate ---------------- */
 function LoginGate({ onSuccess }) {
   const [value, setValue] = useState('')
-  const [error, setError] = useState(false)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
-    if (value === ADMIN_PASSCODE) {
-      window.sessionStorage.setItem(SESSION_KEY, '1')
+    setSubmitting(true)
+    setError('')
+    const { res, data } = await adminFetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode: value }),
+    })
+    setSubmitting(false)
+    if (res.ok && data.ok) {
       onSuccess()
     } else {
-      setError(true)
+      setError(data.error || 'Incorrect passcode.')
     }
   }
 
@@ -41,13 +56,13 @@ function LoginGate({ onSuccess }) {
             type="password"
             autoFocus
             value={value}
-            onChange={(e) => { setValue(e.target.value); setError(false) }}
+            onChange={(e) => { setValue(e.target.value); setError('') }}
             className="w-full rounded-2xl bg-white/10 border border-white/15 px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary/60"
             placeholder="Enter passcode"
           />
-          {error && <p className="text-accent text-xs mt-2">Incorrect passcode. Try again.</p>}
-          <button type="submit" className="magnetic-btn w-full mt-5 bg-primary text-white font-semibold py-3 rounded-2xl">
-            Unlock
+          {error && <p className="text-accent text-xs mt-2">{error}</p>}
+          <button type="submit" disabled={submitting} className="magnetic-btn w-full mt-5 bg-primary text-white font-semibold py-3 rounded-2xl disabled:opacity-60">
+            {submitting ? 'Checking…' : 'Unlock'}
           </button>
         </form>
         <Link to="/" className="block text-center text-white/40 text-xs mt-6 hover:text-white/70 transition">← Back to site</Link>
@@ -96,8 +111,8 @@ function ContactTab({ config, updateConfig }) {
   const [saved, setSaved] = useState(false)
   const set = (k, v) => { setForm((p) => ({ ...p, [k]: v })); setSaved(false) }
 
-  const save = () => {
-    updateConfig({ contact: form })
+  const save = async () => {
+    await updateConfig({ contact: form })
     setSaved(true)
   }
 
@@ -118,103 +133,415 @@ function ContactTab({ config, updateConfig }) {
   )
 }
 
-/* ---------------- Tab: Availability ---------------- */
-function AvailabilityTab({ config, updateConfig }) {
-  const [weekdays, setWeekdays] = useState(config.availability.weekdays)
-  const [blackoutDates, setBlackoutDates] = useState(config.availability.blackoutDates)
-  const [timeSlots, setTimeSlots] = useState(config.availability.timeSlots)
-  const [newDate, setNewDate] = useState('')
-  const [newSlot, setNewSlot] = useState('')
-  const [saved, setSaved] = useState(false)
+/* ---------------- Tab: Availability (calendar-backed) ---------------- */
+function StatusPill({ status }) {
+  const styles = {
+    pending: 'bg-accent/15 text-accent-dark border-accent/30',
+    confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    completed: 'bg-primary/10 text-primary-dark border-primary/20',
+    declined: 'bg-divider/40 text-muted border-divider',
+    cancelled: 'bg-red-50 text-red-600 border-red-200',
+  }
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-widest border ${styles[status] || styles.declined}`}>
+      {status}
+    </span>
+  )
+}
 
-  const toggleDay = (d) => {
-    setWeekdays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()))
-    setSaved(false)
-  }
-  const addDate = () => {
-    if (newDate && !blackoutDates.includes(newDate)) {
-      setBlackoutDates((prev) => [...prev, newDate].sort())
-      setNewDate('')
-      setSaved(false)
-    }
-  }
-  const removeDate = (d) => { setBlackoutDates((prev) => prev.filter((x) => x !== d)); setSaved(false) }
-  const addSlot = () => {
-    const trimmed = newSlot.trim()
-    if (trimmed && !timeSlots.includes(trimmed)) {
-      setTimeSlots((prev) => [...prev, trimmed])
-      setNewSlot('')
-      setSaved(false)
-    }
-  }
-  const removeSlot = (t) => { setTimeSlots((prev) => prev.filter((x) => x !== t)); setSaved(false) }
+function AvailabilityTab() {
+  const todayISO = getPacificTodayISO()
+  const [month, setMonth] = useState(getPacificCurrentMonth())
+  const [monthDays, setMonthDays] = useState({})
+  const [monthLoading, setMonthLoading] = useState(false)
 
-  const save = () => {
-    updateConfig({ availability: { weekdays, blackoutDates, timeSlots } })
-    setSaved(true)
+  const [selectedDate, setSelectedDate] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
+
+  const [addTime, setAddTime] = useState('15:30')
+  const [addDuration, setAddDuration] = useState(30)
+  const [genStart, setGenStart] = useState('15:00')
+  const [genEnd, setGenEnd] = useState('18:00')
+  const [genDuration, setGenDuration] = useState(30)
+  const [copyTargets, setCopyTargets] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const [rules, setRules] = useState([])
+  const [rulesLoading, setRulesLoading] = useState(false)
+  const [ruleForm, setRuleForm] = useState({ weekday: 1, startTime: '15:00', endTime: '18:00', durationMinutes: 30 })
+  const [generateWeeks, setGenerateWeeks] = useState(8)
+
+  const loadMonth = (m) => {
+    setMonthLoading(true)
+    adminFetch(`/api/admin/availability?month=${m}`)
+      .then(({ data }) => setMonthDays(data.days || {}))
+      .finally(() => setMonthLoading(false))
+  }
+
+  const loadDetail = (date) => {
+    setDetailLoading(true)
+    setDetailError('')
+    adminFetch(`/api/admin/availability?date=${date}`)
+      .then(({ data }) => setDetail(data))
+      .finally(() => setDetailLoading(false))
+  }
+
+  const loadRules = () => {
+    setRulesLoading(true)
+    adminFetch('/api/admin/availability-recurring')
+      .then(({ data }) => setRules(data.rules || []))
+      .finally(() => setRulesLoading(false))
+  }
+
+  useEffect(() => { loadMonth(month) }, [month])
+  useEffect(() => { loadRules() }, [])
+  useEffect(() => { if (selectedDate) loadDetail(selectedDate) }, [selectedDate])
+
+  // Derive a coarse status per date for the calendar (available/full/closed)
+  const dayStatus = Object.fromEntries(
+    Object.entries(monthDays).map(([date, d]) => [
+      date,
+      d.isClosed ? 'closed' : d.open > 0 ? 'available' : d.total > 0 ? 'full' : 'closed',
+    ])
+  )
+
+  const refreshAll = () => {
+    loadMonth(month)
+    if (selectedDate) loadDetail(selectedDate)
+  }
+
+  const toggleClosed = async (isClosed) => {
+    setBusy(true)
+    await adminFetch('/api/admin/availability-day', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: selectedDate, isClosed, notes: detail?.notes || '' }),
+    })
+    setBusy(false)
+    refreshAll()
+  }
+
+  const saveNotes = async (notes) => {
+    setBusy(true)
+    await adminFetch('/api/admin/availability-day', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: selectedDate, isClosed: detail?.isClosed || false, notes }),
+    })
+    setBusy(false)
+    refreshAll()
+  }
+
+  const addSlot = async () => {
+    setBusy(true)
+    setDetailError('')
+    const { data } = await adminFetch('/api/admin/availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'single', date: selectedDate, startTime: addTime, durationMinutes: Number(addDuration) }),
+    })
+    setBusy(false)
+    if (!data.ok) setDetailError(data.error)
+    refreshAll()
+  }
+
+  const generateSlots = async () => {
+    setBusy(true)
+    setDetailError('')
+    const { data } = await adminFetch('/api/admin/availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'generate', date: selectedDate, startTime: genStart, endTime: genEnd, durationMinutes: Number(genDuration) }),
+    })
+    setBusy(false)
+    if (!data.ok) setDetailError(data.error)
+    refreshAll()
+  }
+
+  // "Remove" archives — the slot row is never deleted, so a completed/
+  // declined/cancelled booking's history (and its slot_id reference)
+  // stays fully intact. Blocked server-side if a pending/confirmed
+  // booking still references the slot.
+  const archiveSlot = async (slotId) => {
+    setBusy(true)
+    setDetailError('')
+    const { data } = await adminFetch(`/api/admin/availability?slotId=${slotId}`, { method: 'DELETE' })
+    setBusy(false)
+    if (!data.ok) setDetailError(data.error)
+    refreshAll()
+  }
+
+  const restoreSlot = async (slotId) => {
+    setBusy(true)
+    setDetailError('')
+    const { data } = await adminFetch('/api/admin/availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'restore', slotId }),
+    })
+    setBusy(false)
+    if (!data.ok) setDetailError(data.error)
+    refreshAll()
+  }
+
+  const copyToTargets = async () => {
+    const targetDates = copyTargets.split(',').map((s) => s.trim()).filter(isValidDateISO)
+    if (!targetDates.length) { setDetailError('Enter one or more valid dates (YYYY-MM-DD), comma-separated.'); return }
+    setBusy(true)
+    setDetailError('')
+    const { data } = await adminFetch('/api/admin/availability-copy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceDate: selectedDate, targetDates }),
+    })
+    setBusy(false)
+    if (!data.ok) setDetailError(data.error)
+    else setCopyTargets('')
+    refreshAll()
+  }
+
+  const changeBookingStatus = async (bookingId, status) => {
+    setBusy(true)
+    await adminFetch('/api/admin/booking-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId, status }),
+    })
+    setBusy(false)
+    refreshAll()
+  }
+
+  const createRule = async () => {
+    setBusy(true)
+    const { data } = await adminFetch('/api/admin/availability-recurring', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ruleForm),
+    })
+    setBusy(false)
+    if (data.ok) loadRules()
+  }
+
+  const removeRule = async (id) => {
+    setBusy(true)
+    await adminFetch(`/api/admin/availability-recurring?id=${id}`, { method: 'DELETE' })
+    setBusy(false)
+    loadRules()
+  }
+
+  const generateFromRules = async () => {
+    setBusy(true)
+    const { data } = await adminFetch('/api/admin/availability-generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ weeks: Number(generateWeeks) }),
+    })
+    setBusy(false)
+    if (data.ok) { refreshAll() }
   }
 
   return (
     <div>
       <h2 className="font-display font-bold text-xl text-ink mb-1">Booking Availability</h2>
-      <p className="text-muted text-sm mb-6">Controls which days and times show up in the booking wizard.</p>
+      <p className="text-muted text-sm mb-6">Click a date to manage its time slots, close it, or review its bookings.</p>
 
-      <div className="mb-8">
-        <p className="text-xs font-mono uppercase tracking-widest text-muted mb-3">Available Weekdays</p>
-        <div className="flex flex-wrap gap-2">
-          {WEEKDAY_LABELS.map((label, d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => toggleDay(d)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                weekdays.includes(d) ? 'bg-primary text-white shadow-md shadow-primary/30' : 'bg-background border border-divider text-muted'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+      <div className="grid md:grid-cols-2 gap-8">
+        <MonthCalendar
+          month={month}
+          today={todayISO}
+          minMonth={getPacificCurrentMonth()}
+          maxMonth={undefined}
+          allowSelectAnyStatus
+          dayStatus={dayStatus}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          onMonthChange={setMonth}
+          loading={monthLoading}
+          renderBadge={(date) => {
+            const d = monthDays[date]
+            if (!d) return null
+            const bits = []
+            if (d.requested) bits.push(`${d.requested}r`)
+            if (d.confirmed) bits.push(`${d.confirmed}c`)
+            return bits.length ? (
+              <span className="absolute -top-1 -right-1 bg-accent text-deep text-[8px] font-bold rounded-full px-1 leading-tight">
+                {bits.join(' ')}
+              </span>
+            ) : null
+          }}
+        />
+
+        <div>
+          {!selectedDate ? (
+            <div className="h-full flex items-center justify-center text-center text-muted text-sm bg-background border border-dashed border-divider rounded-3xl p-8">
+              Select a date on the calendar to manage its availability.
+            </div>
+          ) : detailLoading ? (
+            <div className="flex items-center gap-2 text-muted text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading&hellip;</div>
+          ) : (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold text-ink">{formatDayLabel(selectedDate)}</h3>
+                <label className="inline-flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" checked={detail?.isClosed || false} onChange={(e) => toggleClosed(e.target.checked)} />
+                  Closed / blackout
+                </label>
+              </div>
+
+              <TextArea
+                label="Private admin notes (never shown publicly)"
+                rows={2}
+                defaultValue={detail?.notes || ''}
+                onBlur={(e) => saveNotes(e.target.value)}
+              />
+
+              {detailError && (
+                <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {detailError}
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Slots</p>
+                <div className="space-y-2">
+                  {(detail?.slots || []).filter((s) => !s.archived_at).length === 0 && <p className="text-muted text-sm">No active slots.</p>}
+                  {(detail?.slots || []).filter((s) => !s.archived_at).map((s) => (
+                    <div key={s.id} className="flex items-center justify-between gap-2 bg-background border border-divider rounded-xl px-3 py-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono">{s.start_time.slice(0, 5)}</span>
+                        <span className="text-muted text-xs">{s.duration_minutes}min</span>
+                        {s.booking ? <StatusPill status={s.booking.status} /> : <StatusPill status="open" />}
+                      </div>
+                      <button type="button" onClick={() => archiveSlot(s.id)} disabled={busy} title="Archive (never deletes — keeps history)" className="text-muted hover:text-red-600 transition">
+                        <Archive className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {(detail?.slots || []).filter((s) => s.archived_at).length > 0 && (
+                <details className="text-sm">
+                  <summary className="text-xs font-mono uppercase tracking-widest text-muted cursor-pointer select-none">
+                    Archived ({(detail?.slots || []).filter((s) => s.archived_at).length}) &mdash; history is kept, never deleted
+                  </summary>
+                  <div className="space-y-2 mt-2">
+                    {(detail?.slots || []).filter((s) => s.archived_at).map((s) => (
+                      <div key={s.id} className="flex items-center justify-between gap-2 bg-background/60 border border-divider/60 rounded-xl px-3 py-2 text-sm opacity-70">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono">{s.start_time.slice(0, 5)}</span>
+                          <span className="text-muted text-xs">{s.duration_minutes}min</span>
+                          {s.booking && <StatusPill status={s.booking.status} />}
+                        </div>
+                        <button type="button" onClick={() => restoreSlot(s.id)} disabled={busy} title="Restore to active" className="text-muted hover:text-emerald-600 transition">
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {(detail?.slots || []).filter((s) => s.booking).length > 0 && (
+                <div>
+                  <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Bookings</p>
+                  <div className="space-y-2">
+                    {(detail?.slots || []).filter((s) => s.booking).map((s) => (
+                      <div key={s.booking.id} className="bg-white border border-divider rounded-xl p-3 text-sm">
+                        <p className="font-medium text-ink">{s.booking.parent_name} &middot; {s.booking.student_name} (Grade {s.booking.grade})</p>
+                        <p className="text-muted text-xs mt-0.5">{s.booking.email} &middot; {s.booking.phone} &middot; {s.booking.format}</p>
+                        {s.booking.notes && <p className="text-muted text-xs mt-1 italic">&ldquo;{s.booking.notes}&rdquo;</p>}
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {s.booking.status === 'pending' && (
+                            <>
+                              <button onClick={() => changeBookingStatus(s.booking.id, 'confirmed')} className="text-xs bg-emerald-500 text-white px-2.5 py-1 rounded-full">Confirm</button>
+                              <button onClick={() => changeBookingStatus(s.booking.id, 'declined')} className="text-xs bg-divider text-ink px-2.5 py-1 rounded-full">Decline</button>
+                            </>
+                          )}
+                          {s.booking.status === 'confirmed' && (
+                            <>
+                              <button onClick={() => changeBookingStatus(s.booking.id, 'completed')} className="text-xs bg-primary text-white px-2.5 py-1 rounded-full">Mark Completed</button>
+                              <button onClick={() => changeBookingStatus(s.booking.id, 'cancelled')} className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full">Cancel</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t border-divider">
+                <div>
+                  <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Add one slot</p>
+                  <div className="flex gap-2">
+                    <input type="time" value={addTime} onChange={(e) => setAddTime(e.target.value)} className="admin-input" />
+                    <input type="number" min={5} max={240} value={addDuration} onChange={(e) => setAddDuration(e.target.value)} className="admin-input w-20" title="Duration (min)" />
+                    <button onClick={addSlot} disabled={busy} className="shrink-0 bg-primary/10 text-primary-dark px-3 rounded-2xl"><Plus className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Generate a range</p>
+                  <div className="flex gap-2">
+                    <input type="time" value={genStart} onChange={(e) => setGenStart(e.target.value)} className="admin-input" />
+                    <input type="time" value={genEnd} onChange={(e) => setGenEnd(e.target.value)} className="admin-input" />
+                    <button onClick={generateSlots} disabled={busy} className="shrink-0 bg-primary/10 text-primary-dark px-3 rounded-2xl"><Plus className="h-4 w-4" /></button>
+                  </div>
+                  <input type="number" min={5} max={240} value={genDuration} onChange={(e) => setGenDuration(e.target.value)} className="admin-input mt-2 w-24" title="Duration (min)" />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Copy this date&rsquo;s slots to&hellip;</p>
+                <div className="flex gap-2">
+                  <input
+                    value={copyTargets}
+                    onChange={(e) => setCopyTargets(e.target.value)}
+                    placeholder="2026-09-01, 2026-09-08, ..."
+                    className="admin-input flex-1"
+                  />
+                  <button onClick={copyToTargets} disabled={busy} className="shrink-0 bg-primary/10 text-primary-dark px-3 rounded-2xl"><Copy className="h-4 w-4" /></button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mb-8">
-        <p className="text-xs font-mono uppercase tracking-widest text-muted mb-3">Blackout Dates (holidays, breaks)</p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {blackoutDates.length === 0 && <span className="text-muted text-sm">None added.</span>}
-          {blackoutDates.map((d) => (
-            <span key={d} className="inline-flex items-center gap-2 bg-background border border-divider rounded-full px-3 py-1.5 text-sm">
-              {d}
-              <button type="button" onClick={() => removeDate(d)} className="text-muted hover:text-accent-dark"><X className="h-3.5 w-3.5" /></button>
-            </span>
+      <div className="mt-10 pt-8 border-t border-divider">
+        <h3 className="font-display font-bold text-lg text-ink mb-1">Recurring Weekly Availability</h3>
+        <p className="text-muted text-sm mb-4">Define a weekly pattern, then generate concrete slots for upcoming weeks. Generating never overwrites existing slots or bookings.</p>
+
+        <div className="space-y-2 mb-4">
+          {rulesLoading && <Loader2 className="h-4 w-4 animate-spin text-muted" />}
+          {!rulesLoading && rules.length === 0 && <p className="text-muted text-sm">No recurring rules yet.</p>}
+          {rules.map((r) => (
+            <div key={r.id} className="flex items-center justify-between bg-background border border-divider rounded-xl px-3 py-2 text-sm">
+              <span>{WEEKDAY_NAMES[r.weekday]} &middot; {r.start_time.slice(0, 5)}&ndash;{r.end_time.slice(0, 5)} &middot; {r.duration_minutes}min slots</span>
+              <button onClick={() => removeRule(r.id)} className="text-muted hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
           ))}
         </div>
-        <div className="flex gap-2">
-          <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="admin-input flex-1" />
-          <button type="button" onClick={addDate} className="inline-flex items-center gap-1.5 bg-primary/10 text-primary-dark font-medium px-4 rounded-2xl text-sm shrink-0">
-            <Plus className="h-4 w-4" /> Add
+
+        <div className="grid sm:grid-cols-5 gap-2 mb-3">
+          <select value={ruleForm.weekday} onChange={(e) => setRuleForm({ ...ruleForm, weekday: Number(e.target.value) })} className="admin-input">
+            {WEEKDAY_NAMES.map((w, i) => <option key={w} value={i}>{w}</option>)}
+          </select>
+          <input type="time" value={ruleForm.startTime} onChange={(e) => setRuleForm({ ...ruleForm, startTime: e.target.value })} className="admin-input" />
+          <input type="time" value={ruleForm.endTime} onChange={(e) => setRuleForm({ ...ruleForm, endTime: e.target.value })} className="admin-input" />
+          <input type="number" min={5} max={240} value={ruleForm.durationMinutes} onChange={(e) => setRuleForm({ ...ruleForm, durationMinutes: Number(e.target.value) })} className="admin-input" title="Duration (min)" />
+          <button onClick={createRule} disabled={busy} className="inline-flex items-center justify-center gap-1.5 bg-primary/10 text-primary-dark rounded-2xl text-sm font-medium"><Plus className="h-4 w-4" /> Add Rule</button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input type="number" min={1} max={26} value={generateWeeks} onChange={(e) => setGenerateWeeks(e.target.value)} className="admin-input w-24" />
+          <button onClick={generateFromRules} disabled={busy} className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-5 py-2.5 rounded-full text-sm">
+            <RefreshCw className="h-4 w-4" /> Generate Slots for Next {generateWeeks} Weeks
           </button>
         </div>
       </div>
-
-      <div>
-        <p className="text-xs font-mono uppercase tracking-widest text-muted mb-3">Time Slots</p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {timeSlots.map((t) => (
-            <span key={t} className="inline-flex items-center gap-2 bg-background border border-divider rounded-full px-3 py-1.5 text-sm">
-              {t}
-              <button type="button" onClick={() => removeSlot(t)} className="text-muted hover:text-accent-dark"><X className="h-3.5 w-3.5" /></button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input value={newSlot} onChange={(e) => setNewSlot(e.target.value)} placeholder="e.g. 4:00 PM" className="admin-input flex-1" />
-          <button type="button" onClick={addSlot} className="inline-flex items-center gap-1.5 bg-primary/10 text-primary-dark font-medium px-4 rounded-2xl text-sm shrink-0">
-            <Plus className="h-4 w-4" /> Add
-          </button>
-        </div>
-      </div>
-
-      <SaveBar onSave={save} saved={saved} />
     </div>
   )
 }
@@ -232,8 +559,8 @@ function ContentTab({ config, updateConfig }) {
     setSaved(false)
   }
 
-  const save = () => {
-    updateConfig({ hero, pages, footer, stats: {
+  const save = async () => {
+    await updateConfig({ hero, pages, footer, stats: {
       sessions: Number(stats.sessions) || 0,
       freePercent: Number(stats.freePercent) || 0,
       replyHours: Number(stats.replyHours) || 0,
@@ -302,8 +629,8 @@ function ContentTab({ config, updateConfig }) {
 function DangerTab({ resetConfig }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const doReset = () => {
-    resetConfig()
+  const doReset = async () => {
+    await resetConfig()
     setConfirmOpen(false)
   }
 
@@ -316,9 +643,10 @@ function DangerTab({ resetConfig }) {
         <div className="flex items-start gap-3">
           <ShieldAlert className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
           <div>
-            <p className="font-display font-semibold text-ink">Reset all settings to defaults</p>
+            <p className="font-display font-semibold text-ink">Reset site text to defaults</p>
             <p className="text-muted text-sm mt-1 leading-relaxed">
-              This clears every edit made in this admin panel, including contact info, availability, and all page text, back to the original template values.
+              This clears every edit made to contact info and page text back to the original template values.
+              It does not touch availability, slots, or bookings.
             </p>
             {!confirmOpen ? (
               <button
@@ -350,8 +678,8 @@ function AdminConsole() {
   const { config, updateConfig, resetConfig, lastSaved } = useSiteConfig()
   const [tab, setTab] = useState('contact')
 
-  const logout = () => {
-    window.sessionStorage.removeItem(SESSION_KEY)
+  const logout = async () => {
+    await fetch('/api/admin/logout', { method: 'POST' })
     window.location.reload()
   }
 
@@ -387,8 +715,8 @@ function AdminConsole() {
         <div className="flex items-start gap-2.5 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-xs sm:text-sm text-accent-dark">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
           <p>
-            Site content and settings here save to <strong>this browser only</strong> (via local storage), not to a shared server.
-            They&rsquo;ll appear here and in this browser&rsquo;s copy of the site immediately, but won&rsquo;t sync to other visitors until a real backend is connected.
+            Site content, settings, and availability now save to Supabase and appear on the live site immediately —
+            no rebuild or redeploy needed.
             {lastSaved && <span className="block mt-1 text-accent-dark/70">Last change: {lastSaved.toLocaleString()}</span>}
           </p>
         </div>
@@ -411,7 +739,7 @@ function AdminConsole() {
 
         <div className="bg-white border border-divider rounded-5xl p-6 sm:p-10 shadow-sm">
           {tab === 'contact' && <ContactTab config={config} updateConfig={updateConfig} />}
-          {tab === 'availability' && <AvailabilityTab config={config} updateConfig={updateConfig} />}
+          {tab === 'availability' && <AvailabilityTab />}
           {tab === 'content' && <ContentTab config={config} updateConfig={updateConfig} />}
           {tab === 'danger' && <DangerTab resetConfig={resetConfig} />}
         </div>
@@ -440,8 +768,23 @@ function AdminConsole() {
 
 /* ---------------- Page entry (auth gate) ---------------- */
 export default function Admin() {
-  const [authed, setAuthed] = useState(() => window.sessionStorage.getItem(SESSION_KEY) === '1')
+  const [authState, setAuthState] = useState('checking') // 'checking' | 'authed' | 'unauthed'
 
-  if (!authed) return <LoginGate onSuccess={() => setAuthed(true)} />
+  useEffect(() => {
+    fetch('/api/admin/me')
+      .then((r) => r.json())
+      .then((data) => setAuthState(data.authed ? 'authed' : 'unauthed'))
+      .catch(() => setAuthState('unauthed'))
+  }, [])
+
+  if (authState === 'checking') {
+    return (
+      <div className="min-h-screen bg-deep flex items-center justify-center">
+        <Loader2 className="h-6 w-6 text-white/50 animate-spin" />
+      </div>
+    )
+  }
+
+  if (authState === 'unauthed') return <LoginGate onSuccess={() => setAuthState('authed')} />
   return <AdminConsole />
 }

@@ -1,60 +1,66 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Phone, Mail, MapPin, ShieldCheck, Gift, Video, Calendar,
   ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Loader2,
 } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
+import { getPacificCurrentMonth, formatDayLabel } from '../lib/timezone.js'
+import MonthCalendar from './MonthCalendar.jsx'
 import Field from './Field.jsx'
 
 const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
-function getUpcomingDays(n, weekdays, blackoutDates) {
-  const out = []
-  const cursor = new Date()
-  const blackoutSet = new Set(blackoutDates)
-  let guard = 0
-  while (out.length < n && guard < 60) {
-    cursor.setDate(cursor.getDate() + 1)
-    guard += 1
-    const day = cursor.getDay()
-    const iso = cursor.toISOString().slice(0, 10)
-    if (weekdays.includes(day) && !blackoutSet.has(iso)) {
-      out.push({
-        key: cursor.toDateString(),
-        iso,
-        weekday: cursor.toLocaleDateString('en-US', { weekday: 'short' }),
-        date: cursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      })
-    }
-  }
-  return out
-}
-
 export default function BookingWizard() {
   const { config } = useSiteConfig()
-  const { contact, availability } = config
+  const { contact } = config
 
   const [step, setStep] = useState(1)
   const [status, setStatus] = useState('idle') // 'idle' | 'sending' | 'sent' | 'error'
   const [errorMessage, setErrorMessage] = useState('')
   const [form, setForm] = useState({
-    grade: '', format: '', day: '', dayISO: '', time: '',
+    grade: '', format: '', dateISO: '', dayLabel: '', slotId: '', timeLabel: '',
     parentName: '', studentName: '', email: '', phone: '', notes: '',
     website: '', // honeypot — must stay empty
   })
 
-  const days = useMemo(
-    () => getUpcomingDays(5, availability.weekdays, availability.blackoutDates),
-    [availability.weekdays, availability.blackoutDates]
-  )
-  const timeSlots = availability.timeSlots.length ? availability.timeSlots : ['3:30 PM', '4:30 PM', '5:30 PM']
+  const [month, setMonth] = useState(getPacificCurrentMonth())
+  const [bounds, setBounds] = useState({ today: '', minMonth: '', maxMonth: '' })
+  const [dayStatus, setDayStatus] = useState({})
+  const [monthLoading, setMonthLoading] = useState(false)
+  const [slots, setSlots] = useState([])
+  const [slotsLoading, setSlotsLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setMonthLoading(true)
+    fetch(`/api/availability?month=${month}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return
+        setBounds({ today: data.today, minMonth: data.minMonth, maxMonth: data.maxMonth })
+        setDayStatus(data.days || {})
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setMonthLoading(false) })
+    return () => { cancelled = true }
+  }, [month])
+
+  const selectDate = (dateISO) => {
+    setForm((prev) => ({ ...prev, dateISO, dayLabel: formatDayLabel(dateISO), slotId: '', timeLabel: '' }))
+    setSlotsLoading(true)
+    fetch(`/api/availability/slots?date=${dateISO}`)
+      .then((r) => r.json())
+      .then((data) => setSlots(data.slots || []))
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false))
+  }
 
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }))
 
   const canNext =
     (step === 1 && form.grade) ||
     (step === 2 && form.format) ||
-    (step === 3 && form.day && form.time)
+    (step === 3 && form.dateISO && form.slotId)
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -66,11 +72,14 @@ export default function BookingWizard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          // Note: no date/time fields are sent — the server derives the
+          // canonical requested_date/date_label/time from the slot row
+          // itself (see supabase/schema.sql: claim_slot_and_book). form.
+          // dateISO/dayLabel/timeLabel below are only used for this
+          // page's own "Request received!" confirmation text.
           grade: form.grade,
           format: form.format,
-          requestedDate: form.dayISO,
-          requestedDateLabel: form.day,
-          requestedTime: form.time,
+          slotId: form.slotId,
           parentName: form.parentName,
           studentName: form.studentName,
           email: form.email,
@@ -84,12 +93,12 @@ export default function BookingWizard() {
 
       if (!res.ok || !result.ok) {
         if (result.conflict) {
-          setErrorMessage('That day and time was just taken by another family. Please choose a different time.')
+          setErrorMessage('That time slot was just taken by another family. Please choose a different time.')
           setStatus('error')
           setStep(3)
-          update('day', '')
-          update('dayISO', '')
-          update('time', '')
+          selectDate(form.dateISO) // refresh the slot list so the taken one disappears
+          update('slotId', '')
+          update('timeLabel', '')
           return
         }
         setErrorMessage(result.error || 'Something went wrong sending your request. Please try again.')
@@ -168,7 +177,7 @@ export default function BookingWizard() {
               </span>
               <h3 className="font-display font-bold text-2xl sm:text-3xl text-ink mt-6">Request received!</h3>
               <p className="text-muted mt-3 max-w-sm leading-relaxed">
-                Grade {form.grade} &middot; {form.format} &middot; {form.day}, {form.time}. A receipt is on its way to {form.email || 'your inbox'}.
+                Grade {form.grade} &middot; {form.format} &middot; {form.dayLabel}, {form.timeLabel}. A receipt is on its way to {form.email || 'your inbox'}.
               </p>
               <div className="mt-4 max-w-sm rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-ink/80 leading-relaxed">
                 This is a <strong>request</strong>, not a confirmed booking yet. We personally review and confirm every session, and will reach out shortly.
@@ -271,42 +280,53 @@ export default function BookingWizard() {
                 {step === 3 && (
                   <div>
                     <h3 className="font-display font-bold text-xl text-ink mb-1">Pick a day and time</h3>
-                    <p className="text-muted text-sm mb-6">Afternoon and early-evening slots, after school lets out.</p>
-                    {days.length === 0 ? (
-                      <p className="text-muted text-sm bg-background border border-divider rounded-2xl p-4">
-                        No open days are configured right now. Please call or email us directly.
-                      </p>
-                    ) : (
-                      <div className={`grid gap-2 mb-6`} style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
-                        {days.map((d) => (
-                          <button
-                            type="button"
-                            key={d.key}
-                            onClick={() => setForm((prev) => ({ ...prev, day: `${d.weekday}, ${d.date}`, dayISO: d.iso }))}
-                            className={`flex flex-col items-center justify-center h-16 rounded-2xl transition-all ${
-                              form.dayISO === d.iso ? 'bg-primary text-white shadow-md shadow-primary/30' : 'bg-background border border-divider text-ink hover:border-primary/40'
-                            }`}
-                          >
-                            <span className="font-mono text-[9px] uppercase opacity-70">{d.weekday}</span>
-                            <span className="font-display font-semibold text-sm mt-0.5">{d.date}</span>
-                          </button>
-                        ))}
+                    <p className="text-muted text-sm mb-6">
+                      All times Pacific (America/Los Angeles).
+                    </p>
+
+                    <MonthCalendar
+                      month={month}
+                      today={bounds.today}
+                      minMonth={bounds.minMonth}
+                      maxMonth={bounds.maxMonth}
+                      dayStatus={dayStatus}
+                      selectedDate={form.dateISO}
+                      onSelectDate={selectDate}
+                      onMonthChange={setMonth}
+                      loading={monthLoading}
+                    />
+
+                    {form.dateISO && (
+                      <div className="mt-6">
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-muted mb-3">
+                          Open times &middot; {form.dayLabel}
+                        </p>
+                        {slotsLoading ? (
+                          <div className="flex items-center gap-2 text-muted text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Loading times&hellip;
+                          </div>
+                        ) : slots.length === 0 ? (
+                          <p className="text-muted text-sm bg-background border border-divider rounded-2xl p-4">
+                            No open times on this date. Please pick another day.
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2.5">
+                            {slots.map((s) => (
+                              <button
+                                type="button"
+                                key={s.id}
+                                onClick={() => setForm((prev) => ({ ...prev, slotId: s.id, timeLabel: s.time }))}
+                                className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
+                                  form.slotId === s.id ? 'bg-primary text-white shadow-md shadow-primary/30' : 'bg-background border border-divider text-ink hover:border-primary/40'
+                                }`}
+                              >
+                                <Calendar className="h-3.5 w-3.5" /> {s.time}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
-                    <div className="flex flex-wrap gap-2.5">
-                      {timeSlots.map((t) => (
-                        <button
-                          type="button"
-                          key={t}
-                          onClick={() => update('time', t)}
-                          className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
-                            form.time === t ? 'bg-primary text-white shadow-md shadow-primary/30' : 'bg-background border border-divider text-ink hover:border-primary/40'
-                          }`}
-                        >
-                          <Calendar className="h-3.5 w-3.5" /> {t}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 )}
 

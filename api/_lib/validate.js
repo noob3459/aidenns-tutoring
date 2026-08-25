@@ -13,8 +13,8 @@ function isPhone(v) {
   return typeof v === 'string' && v.replace(/\D/g, '').length >= 7
 }
 
-function isISODate(v) {
-  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v))
+function isUUID(v) {
+  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
 }
 
 export function escapeHtml(str) {
@@ -24,25 +24,26 @@ export function escapeHtml(str) {
 }
 
 // Validates + sanitizes the raw request body into a clean object matching
-// the `bookings` table columns. Returns { errors: string[], clean: object }.
+// the parameters of the `claim_slot_and_book` database function.
+//
+// Deliberately absent: requestedDate / requestedDateLabel / requestedTime.
+// The database derives all three from the locked slot row itself
+// (see claim_slot_and_book in supabase/schema.sql) — the client is never
+// trusted to supply them, so there's nothing to validate here. This
+// function only validates what the database function actually accepts.
+// Returns { errors: string[], clean: object }.
 export function validateBooking(body) {
   const errors = []
   const clean = {}
+
+  if (!isUUID(body.slotId)) errors.push('Please select a valid time slot.')
+  else clean.slot_id = body.slotId
 
   if (!GRADES.includes(body.grade)) errors.push('Please select a valid grade.')
   else clean.grade = body.grade
 
   if (!FORMATS.includes(body.format)) errors.push('Please select a valid session format.')
   else clean.format = body.format
-
-  if (!isISODate(body.requestedDate)) errors.push('Please select a valid date.')
-  else clean.requested_date = body.requestedDate
-
-  if (!isNonEmptyString(body.requestedDateLabel, 60)) errors.push('Missing date label.')
-  else clean.requested_date_label = body.requestedDateLabel.trim().slice(0, 60)
-
-  if (!isNonEmptyString(body.requestedTime, 30)) errors.push('Please select a valid time.')
-  else clean.requested_time = body.requestedTime.trim().slice(0, 30)
 
   if (!isNonEmptyString(body.parentName, 120)) errors.push('Parent/guardian name is required.')
   else clean.parent_name = body.parentName.trim().slice(0, 120)

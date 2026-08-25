@@ -23,8 +23,8 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${
-          scrolled ? 'glass shadow-lg shadow-primary/10' : 'bg-transparent'
+        className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 glass-dark border border-white/10 transition-shadow duration-500 ${
+          scrolled ? 'shadow-lg shadow-black/30' : 'shadow-md shadow-black/20'
         } rounded-full px-4 sm:px-6 py-2.5 w-[calc(100%-2rem)] max-w-5xl`}
       >
         <div className="flex items-center justify-between gap-4">
@@ -35,18 +35,14 @@ export default function Navbar() {
                 alt="Aidenn's Tutoring logo"
                 className="h-full w-full object-cover"
               />
-              <span className="absolute inset-0 rounded-full ring-2 ring-primary/30 group-hover:ring-primary/50 transition pointer-events-none" />
+              <span className="absolute inset-0 rounded-full ring-2 ring-accent/40 group-hover:ring-accent/60 transition pointer-events-none" />
             </span>
-            <span className={`font-display font-bold tracking-tight text-lg ${scrolled ? 'text-ink' : 'text-white'} transition-colors`}>
+            <span className="font-display font-bold tracking-tight text-lg text-white">
               Aidenn&rsquo;s Tutoring
             </span>
           </Link>
 
-          <span
-            className={`hidden md:inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] px-2.5 py-1 rounded-full border ${
-              scrolled ? 'border-accent/40 bg-accent/10 text-accent-dark' : 'border-accent/50 bg-accent/15 text-accent'
-            }`}
-          >
+          <span className="hidden md:inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] px-2.5 py-1 rounded-full border border-accent/50 bg-accent/15 text-accent">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
             100% Free
           </span>
@@ -58,9 +54,7 @@ export default function Navbar() {
                 to={link.href}
                 className={({ isActive }) =>
                   `text-sm font-medium tracking-tight lift-on-hover transition-colors ${
-                    scrolled
-                      ? isActive ? 'text-primary' : 'text-ink/70 hover:text-primary'
-                      : isActive ? 'text-white' : 'text-white/90 hover:text-white'
+                    isActive ? 'text-accent' : 'text-white/85 hover:text-white'
                   }`
                 }
               >
@@ -71,7 +65,7 @@ export default function Navbar() {
 
           <Link
             to="/booking"
-            className="hidden lg:inline-flex magnetic-btn items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg shadow-primary/30 shrink-0"
+            className="hidden lg:inline-flex magnetic-btn items-center gap-1.5 bg-accent hover:bg-accent-dark text-deep px-4 py-2 rounded-full text-sm font-bold shadow-lg shadow-accent/30 shrink-0"
           >
             Book a Free Session
             <ArrowUpRight className="h-4 w-4" strokeWidth={2.5} />
@@ -79,7 +73,7 @@ export default function Navbar() {
 
           <button
             onClick={() => setOpen(true)}
-            className={`lg:hidden p-2 rounded-full ${scrolled ? 'text-ink' : 'text-white'}`}
+            className="lg:hidden p-2 rounded-full text-white hover:bg-white/10 transition-colors"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />

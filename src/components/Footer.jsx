@@ -40,7 +40,7 @@ export default function Footer() {
               Certified K-9 math tutoring for every family, no tuition, no hidden fees, ever.
             </p>
             <p className="font-mono text-[10px] uppercase tracking-widest text-white/30 mt-6">
-              Community-Funded &middot; Est. 2026
+              Community-Funded &middot; Est. 2024
             </p>
           </div>
 

@@ -1,7 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-const STORAGE_KEY = 'aidenns-tutoring-site-config-v1'
-
 export const DEFAULT_CONFIG = {
   contact: {
     phone: '(555) 010-2947',
@@ -53,12 +51,6 @@ export const DEFAULT_CONFIG = {
     freePercent: 100,
     replyHours: 24,
   },
-  availability: {
-    // 0 = Sunday ... 6 = Saturday
-    weekdays: [1, 2, 3, 4, 5],
-    blackoutDates: [],
-    timeSlots: ['3:30 PM', '4:15 PM', '5:00 PM', '5:45 PM', '6:30 PM'],
-  },
 }
 
 function deepMerge(base, patch) {
@@ -72,41 +64,53 @@ function deepMerge(base, patch) {
   return out
 }
 
-function loadConfig() {
-  if (typeof window === 'undefined') return DEFAULT_CONFIG
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return DEFAULT_CONFIG
-    const parsed = JSON.parse(raw)
-    return deepMerge(DEFAULT_CONFIG, parsed)
-  } catch {
-    return DEFAULT_CONFIG
-  }
-}
-
 const SiteConfigContext = createContext(null)
 
 export function SiteConfigProvider({ children }) {
-  const [config, setConfig] = useState(loadConfig)
+  const [config, setConfig] = useState(DEFAULT_CONFIG)
   const [lastSaved, setLastSaved] = useState(null)
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
-    } catch {
-      // localStorage unavailable (private browsing, etc.) — edits stay in-memory for this session
-    }
-  }, [config])
+    let cancelled = false
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((res) => {
+        if (cancelled) return
+        // Sensible default: if Supabase has nothing yet (or is temporarily
+        // unreachable), the DEFAULT_CONFIG already set above stays in place.
+        if (res?.ok && res.data) setConfig((prev) => deepMerge(prev, res.data))
+      })
+      .catch(() => {
+        // Same fallback — keep whatever is currently in state (DEFAULT_CONFIG).
+      })
+    return () => { cancelled = true }
+  }, [])
 
-  const updateConfig = (patch) => {
+  const updateConfig = async (patch) => {
+    // Optimistic local update so the admin's own browser reflects the
+    // change immediately, regardless of network latency.
     setConfig((prev) => deepMerge(prev, patch))
-    setLastSaved(new Date())
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      const data = await res.json().catch(() => ({ ok: false }))
+      if (res.ok && data.ok && data.data) {
+        setConfig((prev) => deepMerge(prev, data.data))
+        setLastSaved(new Date())
+        return { ok: true }
+      }
+      console.error('Failed to save settings:', data.error)
+      return { ok: false, error: data.error }
+    } catch (err) {
+      console.error('Failed to save settings:', err)
+      return { ok: false, error: 'Network error' }
+    }
   }
 
-  const resetConfig = () => {
-    setConfig(DEFAULT_CONFIG)
-    setLastSaved(new Date())
-  }
+  const resetConfig = () => updateConfig(DEFAULT_CONFIG)
 
   const value = useMemo(() => ({ config, updateConfig, resetConfig, lastSaved }), [config, lastSaved])
 
