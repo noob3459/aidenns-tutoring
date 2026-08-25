@@ -2,9 +2,9 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
 export const DEFAULT_CONFIG = {
   contact: {
-    phone: '(555) 010-2947',
-    phoneTel: '+15550102947',
-    email: 'hello@aidennstutoring.org',
+    phone: '(949) 795-7036',
+    phoneTel: '+19497957036',
+    email: 'aidenn@aidennstutoring.org',
     donateEmail: 'donate@aidennstutoring.org',
     serving: 'Online nationwide & in-person locally',
     hours: 'Mon-Fri · 3:00-7:00 PM',
