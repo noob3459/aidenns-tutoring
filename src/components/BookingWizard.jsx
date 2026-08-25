@@ -48,7 +48,7 @@ export default function BookingWizard() {
   const selectDate = (dateISO) => {
     setForm((prev) => ({ ...prev, dateISO, dayLabel: formatDayLabel(dateISO), slotId: '', timeLabel: '' }))
     setSlotsLoading(true)
-    fetch(`/api/availability/slots?date=${dateISO}`)
+    fetch(`/api/availability?date=${dateISO}`)
       .then((r) => r.json())
       .then((data) => setSlots(data.slots || []))
       .catch(() => setSlots([]))

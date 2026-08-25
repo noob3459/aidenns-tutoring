@@ -91,10 +91,10 @@ export function SiteConfigProvider({ children }) {
     // change immediately, regardless of network latency.
     setConfig((prev) => deepMerge(prev, patch))
     try {
-      const res = await fetch('/api/admin/settings', {
-        method: 'PUT',
+      const res = await fetch('/api/admin/content', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
+        body: JSON.stringify({ action: 'update-settings', ...patch }),
       })
       const data = await res.json().catch(() => ({ ok: false }))
       if (res.ok && data.ok && data.data) {

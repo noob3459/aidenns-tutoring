@@ -27,10 +27,10 @@ function LoginGate({ onSuccess }) {
     e.preventDefault()
     setSubmitting(true)
     setError('')
-    const { res, data } = await adminFetch('/api/admin/login', {
+    const { res, data } = await adminFetch('/api/admin/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ passcode: value }),
+      body: JSON.stringify({ action: 'login', passcode: value }),
     })
     setSubmitting(false)
     if (res.ok && data.ok) {
@@ -190,7 +190,7 @@ function AvailabilityTab() {
 
   const loadRules = () => {
     setRulesLoading(true)
-    adminFetch('/api/admin/availability-recurring')
+    adminFetch('/api/admin/availability?rules=1')
       .then(({ data }) => setRules(data.rules || []))
       .finally(() => setRulesLoading(false))
   }
@@ -214,10 +214,10 @@ function AvailabilityTab() {
 
   const toggleClosed = async (isClosed) => {
     setBusy(true)
-    await adminFetch('/api/admin/availability-day', {
+    await adminFetch('/api/admin/availability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: selectedDate, isClosed, notes: detail?.notes || '' }),
+      body: JSON.stringify({ action: 'set-day', date: selectedDate, isClosed, notes: detail?.notes || '' }),
     })
     setBusy(false)
     refreshAll()
@@ -225,10 +225,10 @@ function AvailabilityTab() {
 
   const saveNotes = async (notes) => {
     setBusy(true)
-    await adminFetch('/api/admin/availability-day', {
+    await adminFetch('/api/admin/availability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: selectedDate, isClosed: detail?.isClosed || false, notes }),
+      body: JSON.stringify({ action: 'set-day', date: selectedDate, isClosed: detail?.isClosed || false, notes }),
     })
     setBusy(false)
     refreshAll()
@@ -240,7 +240,7 @@ function AvailabilityTab() {
     const { data } = await adminFetch('/api/admin/availability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'single', date: selectedDate, startTime: addTime, durationMinutes: Number(addDuration) }),
+      body: JSON.stringify({ action: 'add-slot', date: selectedDate, startTime: addTime, durationMinutes: Number(addDuration) }),
     })
     setBusy(false)
     if (!data.ok) setDetailError(data.error)
@@ -253,7 +253,7 @@ function AvailabilityTab() {
     const { data } = await adminFetch('/api/admin/availability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'generate', date: selectedDate, startTime: genStart, endTime: genEnd, durationMinutes: Number(genDuration) }),
+      body: JSON.stringify({ action: 'generate-slots', date: selectedDate, startTime: genStart, endTime: genEnd, durationMinutes: Number(genDuration) }),
     })
     setBusy(false)
     if (!data.ok) setDetailError(data.error)
@@ -267,7 +267,11 @@ function AvailabilityTab() {
   const archiveSlot = async (slotId) => {
     setBusy(true)
     setDetailError('')
-    const { data } = await adminFetch(`/api/admin/availability?slotId=${slotId}`, { method: 'DELETE' })
+    const { data } = await adminFetch('/api/admin/availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'archive-slot', slotId }),
+    })
     setBusy(false)
     if (!data.ok) setDetailError(data.error)
     refreshAll()
@@ -279,7 +283,7 @@ function AvailabilityTab() {
     const { data } = await adminFetch('/api/admin/availability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'restore', slotId }),
+      body: JSON.stringify({ action: 'restore-slot', slotId }),
     })
     setBusy(false)
     if (!data.ok) setDetailError(data.error)
@@ -291,10 +295,10 @@ function AvailabilityTab() {
     if (!targetDates.length) { setDetailError('Enter one or more valid dates (YYYY-MM-DD), comma-separated.'); return }
     setBusy(true)
     setDetailError('')
-    const { data } = await adminFetch('/api/admin/availability-copy', {
+    const { data } = await adminFetch('/api/admin/availability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sourceDate: selectedDate, targetDates }),
+      body: JSON.stringify({ action: 'copy', sourceDate: selectedDate, targetDates }),
     })
     setBusy(false)
     if (!data.ok) setDetailError(data.error)
@@ -304,10 +308,10 @@ function AvailabilityTab() {
 
   const changeBookingStatus = async (bookingId, status) => {
     setBusy(true)
-    await adminFetch('/api/admin/booking-status', {
+    await adminFetch('/api/admin/content', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookingId, status }),
+      body: JSON.stringify({ action: 'booking-status', bookingId, status }),
     })
     setBusy(false)
     refreshAll()
@@ -315,10 +319,10 @@ function AvailabilityTab() {
 
   const createRule = async () => {
     setBusy(true)
-    const { data } = await adminFetch('/api/admin/availability-recurring', {
+    const { data } = await adminFetch('/api/admin/availability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ruleForm),
+      body: JSON.stringify({ action: 'create-rule', ...ruleForm }),
     })
     setBusy(false)
     if (data.ok) loadRules()
@@ -326,17 +330,21 @@ function AvailabilityTab() {
 
   const removeRule = async (id) => {
     setBusy(true)
-    await adminFetch(`/api/admin/availability-recurring?id=${id}`, { method: 'DELETE' })
+    await adminFetch('/api/admin/availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete-rule', ruleId: id }),
+    })
     setBusy(false)
     loadRules()
   }
 
   const generateFromRules = async () => {
     setBusy(true)
-    const { data } = await adminFetch('/api/admin/availability-generate', {
+    const { data } = await adminFetch('/api/admin/availability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ weeks: Number(generateWeeks) }),
+      body: JSON.stringify({ action: 'generate-from-rules', weeks: Number(generateWeeks) }),
     })
     setBusy(false)
     if (data.ok) { refreshAll() }
@@ -679,7 +687,11 @@ function AdminConsole() {
   const [tab, setTab] = useState('contact')
 
   const logout = async () => {
-    await fetch('/api/admin/logout', { method: 'POST' })
+    await fetch('/api/admin/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'logout' }),
+    })
     window.location.reload()
   }
 
@@ -771,7 +783,7 @@ export default function Admin() {
   const [authState, setAuthState] = useState('checking') // 'checking' | 'authed' | 'unauthed'
 
   useEffect(() => {
-    fetch('/api/admin/me')
+    fetch('/api/admin/session')
       .then((r) => r.json())
       .then((data) => setAuthState(data.authed ? 'authed' : 'unauthed'))
       .catch(() => setAuthState('unauthed'))

@@ -1,6 +1,29 @@
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { requireAdmin } from '../_lib/adminAuth.js'
-import { isValidMonthISO, isValidDateISO } from '../_lib/timezone.js'
+import { isValidMonthISO, isValidDateISO, getPacificTodayISO } from '../_lib/timezone.js'
+
+// Consolidates seven admin availability endpoints into one deployed
+// function (to stay well under Vercel's Hobby serverless function
+// limit): month view, date view, recurring-rule list, add-slot,
+// generate-slots, archive-slot, restore-slot, set-day (close/notes),
+// copy-to-dates, create-rule, delete-rule, generate-from-rules. Every
+// action below is a verbatim port of what used to be its own file —
+// same validation, same error messages, same Supabase calls — just
+// reorganized under one handler with an explicit action allowlist.
+//
+// GET  ?month=YYYY-MM | ?date=YYYY-MM-DD | ?rules=1
+// POST { action: <one of ALLOWED_ACTIONS>, ...fields }
+//
+// requireAdmin() (session + CSRF/origin check) gates the entire handler,
+// same as every file this replaces.
+
+const MAX_TARGET_DATES = 60
+const MAX_WEEKS = 26
+
+const ALLOWED_ACTIONS = [
+  'add-slot', 'generate-slots', 'archive-slot', 'restore-slot',
+  'set-day', 'copy', 'create-rule', 'delete-rule', 'generate-from-rules',
+]
 
 function monthRange(monthISO) {
   const [y, m] = monthISO.split('-').map(Number)
@@ -14,41 +37,41 @@ function isValidTime(v) {
   return typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v)
 }
 
-async function handleGet(req, res, supabase) {
-  const { date, month } = req.query
+/* ---------------- GET: reads ---------------- */
 
-  if (date) {
-    if (!isValidDateISO(date)) return res.status(400).json({ ok: false, error: 'Invalid date.' })
+async function getDateDetail(res, supabase, date) {
+  if (!isValidDateISO(date)) return res.status(400).json({ ok: false, error: 'Invalid date.' })
 
-    // The admin's single-date view intentionally includes archived slots
-    // (unlike every other query in this file) — this is the one place
-    // historical scheduling data stays reviewable, per design.
-    const [{ data: dayOverride }, { data: slots, error: slotsErr }] = await Promise.all([
-      supabase.from('availability_days').select('is_closed, notes').eq('day', date).maybeSingle(),
-      supabase.from('availability_slots').select('id, start_time, duration_minutes, status, archived_at').eq('slot_date', date).order('start_time'),
-    ])
-    if (slotsErr) return res.status(500).json({ ok: false, error: 'Could not load that date.' })
+  // The admin's single-date view intentionally includes archived slots
+  // (unlike every other query here) — this is the one place historical
+  // scheduling data stays reviewable, per design.
+  const [{ data: dayOverride }, { data: slots, error: slotsErr }] = await Promise.all([
+    supabase.from('availability_days').select('is_closed, notes').eq('day', date).maybeSingle(),
+    supabase.from('availability_slots').select('id, start_time, duration_minutes, status, archived_at').eq('slot_date', date).order('start_time'),
+  ])
+  if (slotsErr) return res.status(500).json({ ok: false, error: 'Could not load that date.' })
 
-    const slotIds = (slots || []).map((s) => s.id)
-    let bookings = []
-    if (slotIds.length) {
-      const { data } = await supabase
-        .from('bookings')
-        .select('id, slot_id, status, parent_name, student_name, grade, format, email, phone, notes')
-        .in('slot_id', slotIds)
-        .in('status', ['pending', 'confirmed', 'declined', 'completed', 'cancelled'])
-      bookings = data || []
-    }
-    const bookingBySlot = Object.fromEntries(bookings.map((b) => [b.slot_id, b]))
-
-    return res.status(200).json({
-      date,
-      isClosed: dayOverride?.is_closed || false,
-      notes: dayOverride?.notes || '',
-      slots: (slots || []).map((s) => ({ ...s, booking: bookingBySlot[s.id] || null })),
-    })
+  const slotIds = (slots || []).map((s) => s.id)
+  let bookings = []
+  if (slotIds.length) {
+    const { data } = await supabase
+      .from('bookings')
+      .select('id, slot_id, status, parent_name, student_name, grade, format, email, phone, notes')
+      .in('slot_id', slotIds)
+      .in('status', ['pending', 'confirmed', 'declined', 'completed', 'cancelled'])
+    bookings = data || []
   }
+  const bookingBySlot = Object.fromEntries(bookings.map((b) => [b.slot_id, b]))
 
+  return res.status(200).json({
+    date,
+    isClosed: dayOverride?.is_closed || false,
+    notes: dayOverride?.notes || '',
+    slots: (slots || []).map((s) => ({ ...s, booking: bookingBySlot[s.id] || null })),
+  })
+}
+
+async function getMonthSummary(res, supabase, month) {
   const targetMonth = isValidMonthISO(month) ? month : null
   if (!targetMonth) return res.status(400).json({ ok: false, error: 'Invalid month.' })
 
@@ -56,8 +79,7 @@ async function handleGet(req, res, supabase) {
   const [{ data: closedDays }, { data: slots, error: slotsErr }] = await Promise.all([
     supabase.from('availability_days').select('day, is_closed, notes').gte('day', start).lte('day', end),
     // Month-overview counts reflect the ACTIVE schedule only — archived
-    // slots are excluded here (they're still visible when drilling into
-    // a specific date's detail view above).
+    // slots are excluded here (still visible in the date detail view).
     supabase.from('availability_slots').select('id, slot_date, status').is('archived_at', null).gte('slot_date', start).lte('slot_date', end),
   ])
   if (slotsErr) return res.status(500).json({ ok: false, error: 'Could not load that month.' })
@@ -92,60 +114,27 @@ async function handleGet(req, res, supabase) {
   return res.status(200).json({ month: targetMonth, days: summary })
 }
 
-async function handlePost(req, res, supabase) {
-  let body = req.body
-  if (typeof body === 'string') { try { body = JSON.parse(body) } catch { body = {} } }
-  body = body && typeof body === 'object' ? body : {}
+async function getRules(res, supabase) {
+  const { data, error } = await supabase
+    .from('recurring_availability_rules')
+    .select('*')
+    .order('weekday')
+    .order('start_time')
+  if (error) return res.status(500).json({ ok: false, error: 'Could not load recurring rules.' })
+  return res.status(200).json({ rules: data || [] })
+}
 
-  if (body.mode === 'restore') {
-    if (typeof body.slotId !== 'string' || !body.slotId) {
-      return res.status(400).json({ ok: false, error: 'slotId is required.' })
-    }
-    // Restoring can collide with an active slot that already occupies the
-    // same (date, start_time) — the unique constraint will reject that,
-    // surfaced below as a normal error rather than a silent no-op.
-    const { error } = await supabase
-      .from('availability_slots')
-      .update({ archived_at: null })
-      .eq('id', body.slotId)
-    if (error) {
-      console.error('Slot restore error:', error)
-      const msg = error.code === '23505'
-        ? 'Another active slot already exists at that exact date and time.'
-        : 'Could not restore that slot.'
-      return res.status(400).json({ ok: false, error: msg })
-    }
-    return res.status(200).json({ ok: true })
-  }
+/* ---------------- POST: actions ---------------- */
 
+async function addSlot(res, supabase, body) {
   if (!isValidDateISO(body.date)) return res.status(400).json({ ok: false, error: 'Invalid date.' })
-
   const duration = Number(body.durationMinutes)
   if (!Number.isFinite(duration) || duration <= 0 || duration > 240) {
     return res.status(400).json({ ok: false, error: 'Invalid duration.' })
   }
+  if (!isValidTime(body.startTime)) return res.status(400).json({ ok: false, error: 'Invalid start time.' })
 
-  let rows = []
-  if (body.mode === 'generate') {
-    if (!isValidTime(body.startTime) || !isValidTime(body.endTime)) {
-      return res.status(400).json({ ok: false, error: 'Invalid start/end time.' })
-    }
-    const [sh, sm] = body.startTime.split(':').map(Number)
-    const [eh, em] = body.endTime.split(':').map(Number)
-    const startMin = sh * 60 + sm
-    const endMin = eh * 60 + em
-    if (endMin <= startMin) return res.status(400).json({ ok: false, error: 'End time must be after start time.' })
-
-    for (let t = startMin; t + duration <= endMin; t += duration) {
-      const h = String(Math.floor(t / 60)).padStart(2, '0')
-      const m = String(t % 60).padStart(2, '0')
-      rows.push({ slot_date: body.date, start_time: `${h}:${m}:00`, duration_minutes: duration })
-    }
-    if (!rows.length) return res.status(400).json({ ok: false, error: 'That window produces no slots at that duration.' })
-  } else {
-    if (!isValidTime(body.startTime)) return res.status(400).json({ ok: false, error: 'Invalid start time.' })
-    rows = [{ slot_date: body.date, start_time: `${body.startTime}:00`, duration_minutes: duration }]
-  }
+  const rows = [{ slot_date: body.date, start_time: `${body.startTime}:00`, duration_minutes: duration }]
 
   const { data, error } = await supabase
     .from('availability_slots')
@@ -156,26 +145,58 @@ async function handlePost(req, res, supabase) {
     console.error('Slot create error:', error)
     return res.status(500).json({ ok: false, error: 'Could not save that availability.' })
   }
-
   return res.status(200).json({ ok: true, created: data?.length || 0, requested: rows.length })
 }
 
-// "Removing" a slot ARCHIVES it — the row is never deleted. This is the
-// only path the admin UI's "Remove slot" button calls. A slot with a
-// pending/confirmed booking cannot be archived at all (must be
+async function generateSlots(res, supabase, body) {
+  if (!isValidDateISO(body.date)) return res.status(400).json({ ok: false, error: 'Invalid date.' })
+  const duration = Number(body.durationMinutes)
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 240) {
+    return res.status(400).json({ ok: false, error: 'Invalid duration.' })
+  }
+  if (!isValidTime(body.startTime) || !isValidTime(body.endTime)) {
+    return res.status(400).json({ ok: false, error: 'Invalid start/end time.' })
+  }
+  const [sh, sm] = body.startTime.split(':').map(Number)
+  const [eh, em] = body.endTime.split(':').map(Number)
+  const startMin = sh * 60 + sm
+  const endMin = eh * 60 + em
+  if (endMin <= startMin) return res.status(400).json({ ok: false, error: 'End time must be after start time.' })
+
+  const rows = []
+  for (let t = startMin; t + duration <= endMin; t += duration) {
+    const h = String(Math.floor(t / 60)).padStart(2, '0')
+    const m = String(t % 60).padStart(2, '0')
+    rows.push({ slot_date: body.date, start_time: `${h}:${m}:00`, duration_minutes: duration })
+  }
+  if (!rows.length) return res.status(400).json({ ok: false, error: 'That window produces no slots at that duration.' })
+
+  const { data, error } = await supabase
+    .from('availability_slots')
+    .upsert(rows, { onConflict: 'slot_date,start_time', ignoreDuplicates: true })
+    .select()
+
+  if (error) {
+    console.error('Slot create error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not save that availability.' })
+  }
+  return res.status(200).json({ ok: true, created: data?.length || 0, requested: rows.length })
+}
+
+// "Removing" a slot ARCHIVES it — the row is never deleted. A slot with
+// a pending/confirmed booking cannot be archived at all (must be
 // declined/cancelled first); a slot behind a completed/declined/
 // cancelled booking can be archived — its history stays fully intact,
 // just hidden from the public site and admin month counts.
-async function handleArchive(req, res, supabase) {
-  const slotId = req.query.slotId
-  if (typeof slotId !== 'string' || !slotId) {
+async function archiveSlot(res, supabase, body) {
+  if (typeof body.slotId !== 'string' || !body.slotId) {
     return res.status(400).json({ ok: false, error: 'slotId is required.' })
   }
 
   const { data: activeBooking } = await supabase
     .from('bookings')
     .select('id, status, parent_name, student_name')
-    .eq('slot_id', slotId)
+    .eq('slot_id', body.slotId)
     .in('status', ['pending', 'confirmed'])
     .maybeSingle()
 
@@ -190,15 +211,199 @@ async function handleArchive(req, res, supabase) {
   const { error } = await supabase
     .from('availability_slots')
     .update({ archived_at: new Date().toISOString() })
-    .eq('id', slotId)
+    .eq('id', body.slotId)
 
   if (error) {
     console.error('Slot archive error:', error)
     return res.status(500).json({ ok: false, error: 'Could not archive that slot.' })
   }
-
   return res.status(200).json({ ok: true })
 }
+
+async function restoreSlot(res, supabase, body) {
+  if (typeof body.slotId !== 'string' || !body.slotId) {
+    return res.status(400).json({ ok: false, error: 'slotId is required.' })
+  }
+  // Restoring can collide with an active slot that already occupies the
+  // same (date, start_time) — the unique constraint will reject that,
+  // surfaced below as a normal error rather than a silent no-op.
+  const { error } = await supabase
+    .from('availability_slots')
+    .update({ archived_at: null })
+    .eq('id', body.slotId)
+  if (error) {
+    console.error('Slot restore error:', error)
+    const msg = error.code === '23505'
+      ? 'Another active slot already exists at that exact date and time.'
+      : 'Could not restore that slot.'
+    return res.status(400).json({ ok: false, error: msg })
+  }
+  return res.status(200).json({ ok: true })
+}
+
+async function setDay(res, supabase, body) {
+  if (!isValidDateISO(body.date)) return res.status(400).json({ ok: false, error: 'Invalid date.' })
+  const isClosed = Boolean(body.isClosed)
+  const notes = typeof body.notes === 'string' ? body.notes.trim().slice(0, 2000) : ''
+
+  const { error } = await supabase
+    .from('availability_days')
+    .upsert({ day: body.date, is_closed: isClosed, notes, updated_at: new Date().toISOString() }, { onConflict: 'day' })
+
+  if (error) {
+    console.error('Day override save error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not save that date.' })
+  }
+  return res.status(200).json({ ok: true })
+}
+
+async function copySlots(res, supabase, body) {
+  if (!isValidDateISO(body.sourceDate)) {
+    return res.status(400).json({ ok: false, error: 'Invalid source date.' })
+  }
+  const targetDates = Array.isArray(body.targetDates) ? body.targetDates.filter(isValidDateISO) : []
+  if (!targetDates.length) {
+    return res.status(400).json({ ok: false, error: 'At least one valid target date is required.' })
+  }
+  if (targetDates.length > MAX_TARGET_DATES) {
+    return res.status(400).json({ ok: false, error: `Please copy to ${MAX_TARGET_DATES} dates or fewer at a time.` })
+  }
+
+  const { data: sourceSlots, error: sourceErr } = await supabase
+    .from('availability_slots')
+    .select('start_time, duration_minutes')
+    .eq('slot_date', body.sourceDate)
+
+  if (sourceErr) {
+    console.error('Copy source lookup error:', sourceErr)
+    return res.status(500).json({ ok: false, error: 'Could not read the source date.' })
+  }
+  if (!sourceSlots?.length) {
+    return res.status(400).json({ ok: false, error: 'The source date has no slots to copy.' })
+  }
+
+  const rows = targetDates.flatMap((date) =>
+    sourceSlots.map((s) => ({ slot_date: date, start_time: s.start_time, duration_minutes: s.duration_minutes }))
+  )
+
+  const { data, error } = await supabase
+    .from('availability_slots')
+    .upsert(rows, { onConflict: 'slot_date,start_time', ignoreDuplicates: true })
+    .select()
+
+  if (error) {
+    console.error('Copy insert error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not copy availability.' })
+  }
+  return res.status(200).json({ ok: true, created: data?.length || 0, requested: rows.length })
+}
+
+async function createRule(res, supabase, body) {
+  const weekday = Number(body.weekday)
+  const duration = Number(body.durationMinutes)
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    return res.status(400).json({ ok: false, error: 'Invalid weekday.' })
+  }
+  if (!isValidTime(body.startTime) || !isValidTime(body.endTime)) {
+    return res.status(400).json({ ok: false, error: 'Invalid start/end time.' })
+  }
+  if (body.startTime >= body.endTime) {
+    return res.status(400).json({ ok: false, error: 'End time must be after start time.' })
+  }
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 240) {
+    return res.status(400).json({ ok: false, error: 'Invalid duration.' })
+  }
+
+  const { data, error } = await supabase
+    .from('recurring_availability_rules')
+    .insert({
+      weekday, start_time: `${body.startTime}:00`, end_time: `${body.endTime}:00`,
+      duration_minutes: duration, active: true,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Recurring rule create error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not save that rule.' })
+  }
+  return res.status(200).json({ ok: true, rule: data })
+}
+
+async function deleteRule(res, supabase, body) {
+  if (typeof body.ruleId !== 'string' || !body.ruleId) {
+    return res.status(400).json({ ok: false, error: 'ruleId is required.' })
+  }
+  const { error } = await supabase.from('recurring_availability_rules').delete().eq('id', body.ruleId)
+  if (error) return res.status(500).json({ ok: false, error: 'Could not remove that rule.' })
+  return res.status(200).json({ ok: true })
+}
+
+async function generateFromRules(res, supabase, body) {
+  const weeks = Number(body.weeks)
+  if (!Number.isInteger(weeks) || weeks <= 0 || weeks > MAX_WEEKS) {
+    return res.status(400).json({ ok: false, error: `weeks must be between 1 and ${MAX_WEEKS}.` })
+  }
+
+  let ruleQuery = supabase.from('recurring_availability_rules').select('*').eq('active', true)
+  if (typeof body.ruleId === 'string' && body.ruleId) ruleQuery = ruleQuery.eq('id', body.ruleId)
+  const { data: rules, error: rulesErr } = await ruleQuery
+
+  if (rulesErr) return res.status(500).json({ ok: false, error: 'Could not load recurring rules.' })
+  if (!rules?.length) return res.status(400).json({ ok: false, error: 'No active recurring rules to generate from.' })
+
+  const todayISO = getPacificTodayISO()
+  const [ty, tm, td] = todayISO.split('-').map(Number)
+  const startDate = new Date(Date.UTC(ty, tm - 1, td))
+  const totalDays = weeks * 7
+
+  const candidateDates = []
+  for (let i = 1; i <= totalDays; i++) {
+    const d = new Date(startDate)
+    d.setUTCDate(d.getUTCDate() + i)
+    candidateDates.push({ iso: d.toISOString().slice(0, 10), weekday: d.getUTCDay() })
+  }
+
+  const datesInRange = candidateDates.map((c) => c.iso)
+  const { data: closedDays } = await supabase
+    .from('availability_days')
+    .select('day')
+    .in('day', datesInRange)
+    .eq('is_closed', true)
+  const closedSet = new Set((closedDays || []).map((d) => d.day))
+
+  const rows = []
+  for (const rule of rules) {
+    const [sh, sm] = rule.start_time.split(':').map(Number)
+    const [eh, em] = rule.end_time.split(':').map(Number)
+    const startMin = sh * 60 + sm
+    const endMin = eh * 60 + em
+
+    for (const cand of candidateDates) {
+      if (cand.weekday !== rule.weekday || closedSet.has(cand.iso)) continue
+      for (let t = startMin; t + rule.duration_minutes <= endMin; t += rule.duration_minutes) {
+        const h = String(Math.floor(t / 60)).padStart(2, '0')
+        const m = String(t % 60).padStart(2, '0')
+        rows.push({ slot_date: cand.iso, start_time: `${h}:${m}:00`, duration_minutes: rule.duration_minutes })
+      }
+    }
+  }
+
+  if (!rows.length) return res.status(200).json({ ok: true, created: 0, requested: 0 })
+
+  const { data, error } = await supabase
+    .from('availability_slots')
+    .upsert(rows, { onConflict: 'slot_date,start_time', ignoreDuplicates: true })
+    .select()
+
+  if (error) {
+    console.error('Generate insert error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not generate slots.' })
+  }
+  return res.status(200).json({ ok: true, created: data?.length || 0, requested: rows.length })
+}
+
+/* ---------------- dispatch ---------------- */
 
 export default async function handler(req, res) {
   if (!requireAdmin(req, res)) return
@@ -211,10 +416,35 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'The admin system is temporarily unavailable.' })
   }
 
-  if (req.method === 'GET') return handleGet(req, res, supabase)
-  if (req.method === 'POST') return handlePost(req, res, supabase)
-  if (req.method === 'DELETE') return handleArchive(req, res, supabase)
+  if (req.method === 'GET') {
+    if (req.query.date) return getDateDetail(res, supabase, req.query.date)
+    if (req.query.month) return getMonthSummary(res, supabase, req.query.month)
+    if (req.query.rules) return getRules(res, supabase)
+    return res.status(400).json({ ok: false, error: 'Specify month, date, or rules.' })
+  }
 
-  res.setHeader('Allow', 'GET, POST, DELETE')
+  if (req.method === 'POST') {
+    let body = req.body
+    if (typeof body === 'string') { try { body = JSON.parse(body) } catch { body = {} } }
+    body = body && typeof body === 'object' ? body : {}
+
+    if (!ALLOWED_ACTIONS.includes(body.action)) {
+      return res.status(400).json({ ok: false, error: 'Unknown action.' })
+    }
+
+    switch (body.action) {
+      case 'add-slot': return addSlot(res, supabase, body)
+      case 'generate-slots': return generateSlots(res, supabase, body)
+      case 'archive-slot': return archiveSlot(res, supabase, body)
+      case 'restore-slot': return restoreSlot(res, supabase, body)
+      case 'set-day': return setDay(res, supabase, body)
+      case 'copy': return copySlots(res, supabase, body)
+      case 'create-rule': return createRule(res, supabase, body)
+      case 'delete-rule': return deleteRule(res, supabase, body)
+      case 'generate-from-rules': return generateFromRules(res, supabase, body)
+    }
+  }
+
+  res.setHeader('Allow', 'GET, POST')
   return res.status(405).json({ ok: false, error: 'Method not allowed.' })
 }
