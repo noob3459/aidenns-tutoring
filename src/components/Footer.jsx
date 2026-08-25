@@ -31,7 +31,7 @@ export default function Footer() {
           <div className="col-span-2">
             <div className="mb-4">
               <img
-                src="/images/logo-full.png"
+                src="/images/aidenns-tutoring-logo-premium.png"
                 alt="Aidenn's Tutoring"
                 className="h-14 sm:h-16 w-auto"
               />

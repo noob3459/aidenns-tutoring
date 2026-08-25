@@ -31,7 +31,7 @@ export default function Navbar() {
           <Link to="/" className="flex items-center gap-2 group shrink-0">
             <span className="relative flex h-9 w-9 items-center justify-center rounded-full overflow-hidden shrink-0">
               <img
-                src="/images/logo-mark.png"
+                src="/images/aidenns-tutoring-logo-mark.png"
                 alt="Aidenn's Tutoring logo"
                 className="h-full w-full object-cover"
               />
@@ -99,7 +99,16 @@ export default function Navbar() {
           }`}
         >
           <div className="flex items-center justify-between mb-10">
-            <span className="font-display font-bold text-xl text-ink">Aidenn&rsquo;s Tutoring</span>
+            <span className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden shrink-0">
+                <img
+                  src="/images/aidenns-tutoring-logo-mark.png"
+                  alt="Aidenn's Tutoring logo"
+                  className="h-full w-full object-cover"
+                />
+              </span>
+              <span className="font-display font-bold text-xl text-ink">Aidenn&rsquo;s Tutoring</span>
+            </span>
             <button onClick={() => setOpen(false)} className="p-2 rounded-full bg-divider/40">
               <X className="h-5 w-5" />
             </button>
