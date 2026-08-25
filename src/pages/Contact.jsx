@@ -1,0 +1,55 @@
+import { Link } from 'react-router-dom'
+import { Phone, Mail, MapPin, Clock, ArrowRight } from 'lucide-react'
+import { useSiteConfig } from '../context/SiteConfigContext.jsx'
+import PageHeader from '../components/PageHeader.jsx'
+import DonateBanner from '../components/DonateBanner.jsx'
+
+export default function Contact() {
+  const { config } = useSiteConfig()
+  const { contact, pages } = config
+  const p = pages.contact
+
+  const cards = [
+    { Icon: Phone, label: 'Call or Text', value: contact.phone, href: `tel:${contact.phoneTel}` },
+    { Icon: Mail, label: 'Email', value: contact.email, href: `mailto:${contact.email}` },
+    { Icon: MapPin, label: 'Serving', value: contact.serving, href: null },
+    { Icon: Clock, label: 'Hours', value: contact.hours, href: null },
+  ]
+
+  return (
+    <>
+      <PageHeader eyebrow={p.eyebrow} heading1={p.heading1} heading2={p.heading2} sub={p.sub} />
+
+      <section className="relative px-6 sm:px-10 lg:px-16 pb-16">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {cards.map(({ Icon, label, value, href }, i) => {
+            const inner = (
+              <div className="bg-white border border-divider rounded-4xl p-7 h-full hover:border-primary/40 transition-colors shadow-sm">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 mb-4">
+                  <Icon className="h-5 w-5 text-primary" strokeWidth={2} />
+                </span>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted mb-1">{label}</p>
+                <p className="font-display font-semibold text-lg text-ink">{value}</p>
+              </div>
+            )
+            return href ? (
+              <a key={i} href={href} className="block">{inner}</a>
+            ) : (
+              <div key={i}>{inner}</div>
+            )
+          })}
+        </div>
+
+        <div className="max-w-5xl mx-auto text-center mt-14">
+          <p className="text-muted mb-4">Ready to get started instead?</p>
+          <Link to="/booking" className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-7 py-3.5 rounded-full shadow-xl shadow-primary/30">
+            Book a Free Session
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      <DonateBanner />
+    </>
+  )
+}
