@@ -30,9 +30,9 @@ function Hero() {
     <section ref={heroRef} className="relative min-h-[100dvh] w-full overflow-hidden">
       <div className="absolute inset-0">
         <img
-          src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=2400&q=80"
-          alt="Bright modern desk with notebook and workbook"
-          className="w-full h-full object-cover"
+          src="/images/hero-image-v2.png"
+          alt="Handwritten K-9 math problems, fractions, algebra, and a coordinate graph on paper against a navy background"
+          className="w-full h-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-tr from-deep/88 via-deep/55 to-primary/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-deep via-deep/30 to-transparent" />

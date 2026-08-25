@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { Menu, X, ArrowUpRight, Sigma } from 'lucide-react'
+import { Menu, X, ArrowUpRight } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'Home', href: '/' },
@@ -29,9 +29,13 @@ export default function Navbar() {
       >
         <div className="flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2 group shrink-0">
-            <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-primary">
-              <Sigma className="h-5 w-5 text-white" strokeWidth={2.4} />
-              <span className="absolute inset-0 rounded-full ring-2 ring-primary/30 group-hover:ring-primary/50 transition" />
+            <span className="relative flex h-9 w-9 items-center justify-center rounded-full overflow-hidden shrink-0">
+              <img
+                src="/images/logo-mark.png"
+                alt="Aidenn's Tutoring logo"
+                className="h-full w-full object-cover"
+              />
+              <span className="absolute inset-0 rounded-full ring-2 ring-primary/30 group-hover:ring-primary/50 transition pointer-events-none" />
             </span>
             <span className={`font-display font-bold tracking-tight text-lg ${scrolled ? 'text-ink' : 'text-white'} transition-colors`}>
               Aidenn&rsquo;s Tutoring

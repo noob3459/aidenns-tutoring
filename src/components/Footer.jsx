@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Sigma } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import { SERVICES_FULL } from '../data/services.js'
 
@@ -29,11 +29,12 @@ export default function Footer() {
 
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-10">
           <div className="col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="h-9 w-9 rounded-full bg-primary flex items-center justify-center">
-                <Sigma className="h-5 w-5 text-white" strokeWidth={2.4} />
-              </span>
-              <span className="font-display font-bold text-lg">Aidenn&rsquo;s Tutoring</span>
+            <div className="mb-4">
+              <img
+                src="/images/logo-full.png"
+                alt="Aidenn's Tutoring"
+                className="h-14 sm:h-16 w-auto"
+              />
             </div>
             <p className="text-white/50 text-sm leading-relaxed max-w-xs">
               Certified K-9 math tutoring for every family, no tuition, no hidden fees, ever.
