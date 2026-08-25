@@ -1,7 +1,7 @@
 # Aidenn's Tutoring — Backend Setup Checklist
 
 This covers wiring up the real booking backend: Supabase (database), Vercel
-(hosting + serverless API + email sending), Google/Gmail (notifications),
+(hosting + serverless API + email sending), Resend (email delivery),
 and GoDaddy (domain). Nothing has been deployed — this is what to do next.
 
 ## ⚠️ First: a stray Vercel project was accidentally created
@@ -30,16 +30,48 @@ Then do the real import (step 4 below) under the correct account/team.
 4. Treat the service_role key like a master password — it bypasses RLS entirely. It only ever goes into Vercel environment variables, never into any file in this repo, never into frontend code.
 5. To confirm a booking later: open **Table Editor → bookings**, find the row, change `status` from `pending` to `confirmed` (or `declined`).
 
-## 2. Google / Gmail (for sending email)
+## 2. Resend (for sending email)
 
-1. Go to your Google Account → **Security**.
-2. Turn on **2-Step Verification** if it isn't already on (required for App Passwords).
-3. Once 2-Step Verification is on, go to **Security → 2-Step Verification → App passwords** (or search "App Passwords" in your Google Account settings).
-4. Create a new app password — name it something like "Aidenn's Tutoring site".
-5. Google shows you a 16-character password **once**. Copy it immediately.
-   - `GMAIL_USER` = your full Gmail address (e.g. `you@gmail.com`)
-   - `GMAIL_APP_PASSWORD` = that 16-character code (not your normal Gmail password)
-6. Decide where new-booking-request emails should land — `BOOKING_NOTIFICATION_EMAIL` (can be the same Gmail address, or a different inbox you check).
+1. Create an account at resend.com (or use an existing one).
+2. Go to **API Keys → Create API Key**. Give it a name like "Aidenn's Tutoring site", default permissions are fine.
+3. Copy the key immediately — Resend only shows it once.
+   - `RESEND_API_KEY` = that key
+4. Set the fixed values (already filled in for you in `.env.example`):
+   - `MAIL_FROM` = `Aidenn’s Tutoring <aidenn@aidennstutoring.org>`
+   - `MAIL_REPLY_TO` = `aidenn@aidennstutoring.org`
+   - `BOOKING_NOTIFICATION_EMAIL` = `aidenn@aidennstutoring.org` (change this if you want alerts to land somewhere else)
+5. **Before you can actually send from `aidenn@aidennstutoring.org`, the domain must be verified in Resend.** See the next section — do this before deploying, or Resend will reject the send.
+
+### 2a. Verify `aidennstutoring.org` in Resend through GoDaddy
+
+⚠️ **Your domain already runs Microsoft 365 email.** Do not delete or replace
+any existing `MX` records, the `autodiscover` `CNAME` record, your existing
+`SPF` `TXT` record, or any Microsoft/Office 365 domain-verification `TXT`
+record (often something like `MS=ms12345678`). Deleting any of those breaks
+your real inbox at `aidenn@aidennstutoring.org`. Everything below is
+**additive** — you're adding new records alongside the Microsoft 365 ones,
+not replacing them.
+
+1. In the Resend dashboard: **Domains → Add Domain** → enter `aidennstutoring.org` → select the closest region → **Add**.
+2. Resend shows you a list of DNS records to add — typically:
+   - Several **DKIM** `CNAME` records (e.g. `resend._domainkey` → some `....dkim.resend.com` value, sometimes 2-3 of these).
+   - One **SPF** `TXT` record, usually `v=spf1 include:amazonses.com ~all` (Resend sends through Amazon SES).
+   - Optionally an `MX` record for bounce/inbound handling — **you almost certainly don't need this**, since Microsoft 365 already owns MX for this domain. Skip any Resend-suggested `MX` record unless you specifically want Resend handling inbound mail (you don't, in this setup).
+3. In GoDaddy: **My Products → DNS** for `aidennstutoring.org`.
+4. Add the **DKIM CNAME records exactly as Resend shows them** — these are new record names (like `resend._domainkey`), so they can't conflict with anything Microsoft 365 uses. Just add them.
+5. **The SPF TXT record needs special handling — do not add a second SPF record.** A domain can only have one `v=spf1 ...` TXT record; having two causes SPF to fail (a "PermError") for *both* Microsoft 365 and Resend, which can hurt deliverability or cause your legitimate mail to be marked as spam.
+   - First, look at your **existing** SPF record in GoDaddy's DNS list (a `TXT` record at the root/`@` that starts with `v=spf1`). It's probably close to:
+     ```
+     v=spf1 include:spf.protection.outlook.com -all
+     ```
+   - **Don't add Resend's SPF line as a separate record.** Instead, **edit your existing SPF TXT record** to include both mail systems in one line:
+     ```
+     v=spf1 include:spf.protection.outlook.com include:amazonses.com -all
+     ```
+     (Keep whatever `all` qualifier your existing record already used — `-all` or `~all` — there should only be one `all` mechanism, at the very end, after both `include:` entries.)
+   - If your existing SPF record has other `include:` entries too (e.g. for a marketing tool), keep those and just add `include:amazonses.com` alongside them in the same record.
+6. Wait for DNS to propagate, then back in Resend's **Domains** page, click **Verify** (or wait — Resend also polls automatically). All records should turn green.
+7. Once verified, test by triggering a real booking against a deployed preview URL (see step 6 in the Vercel section below) and confirming both emails arrive and pass authentication (Resend's dashboard shows delivery status per email).
 
 ## 3. Vercel — import the project
 
@@ -61,9 +93,10 @@ Then do the real import (step 4 below) under the correct account/team.
    |---|---|
    | `SUPABASE_URL` | from Supabase step 3 |
    | `SUPABASE_SERVICE_ROLE_KEY` | from Supabase step 3 |
-   | `GMAIL_USER` | your Gmail address |
-   | `GMAIL_APP_PASSWORD` | the 16-character app password |
-   | `BOOKING_NOTIFICATION_EMAIL` | where you want booking alerts sent |
+   | `RESEND_API_KEY` | from Resend step 3 |
+   | `MAIL_FROM` | `Aidenn’s Tutoring <aidenn@aidennstutoring.org>` |
+   | `MAIL_REPLY_TO` | `aidenn@aidennstutoring.org` |
+   | `BOOKING_NOTIFICATION_EMAIL` | where you want booking alerts sent (`aidenn@aidennstutoring.org` by default) |
 
 5. Click **Deploy**. This creates a preview deployment — nothing goes live on your domain yet.
 6. Test the live preview URL: go through the booking wizard end-to-end, confirm you get the owner notification email and the parent gets the receipt email, and confirm the row shows up in Supabase's Table Editor.
@@ -76,7 +109,7 @@ To test locally before pushing: copy `.env.example` to `.env`, fill in real valu
 1. In Vercel: **Project → Settings → Domains → Add** → enter `aidennstutoring.org` → Vercel shows you the exact DNS records it wants (usually an `A` record for the apex domain and a `CNAME` for `www`).
 2. In GoDaddy: **My Products → DNS** for `aidennstutoring.org`.
 3. Add exactly the records Vercel showed you (don't guess — copy the values Vercel displays, they can change).
-   - **Do not delete existing `MX` or `TXT` records** on this domain if it currently sends/receives email or has domain-verification TXT records (e.g. Google Workspace) — only add/edit the `A`/`CNAME` records Vercel asked for.
+   - **Do not delete existing `MX`, `autodiscover` `CNAME`, `SPF` `TXT`, or Microsoft/Office 365 verification `TXT` records** on this domain — this domain runs real Microsoft 365 email. Only add/edit the `A`/`CNAME` records Vercel specifically asked for; everything Microsoft 365 needs stays untouched. (See section 2a above if you also need to add Resend's SPF include — merge it into the existing SPF record, don't create a second one.)
 4. Wait for DNS to propagate (usually minutes, sometimes up to a few hours) — Vercel's Domains page will show a green "Valid Configuration" once it sees it.
 5. In Vercel, set `aidennstutoring.org` as the **Primary Domain** for the project (Domains tab → the "..." menu next to the domain → Set as Primary). This makes Vercel 301-redirect any other attached domain (like a bare `www`) to it automatically.
 
@@ -90,7 +123,7 @@ You said not to use masking — this is a clean 301 (search engines and browsers
    - Forward type: **Permanent (301)**
    - Settings: **Forward only** — make sure "masking"/"cloaking" is turned **off** (GoDaddy sometimes calls this "Forward with masking" — leave that unchecked).
 3. Repeat for `www.aidennstutoring.com` (GoDaddy usually lets you forward `www` separately, or bundles it with a checkbox) → also 301, also no masking, also pointing to `https://aidennstutoring.org`.
-4. Same warning as before: **don't delete existing MX/TXT records** on `aidennstutoring.com` if that domain handles any email or has verification records — domain forwarding for the web address doesn't require touching those.
+4. Same warning as before: **don't delete existing MX/Autodiscover/SPF/verification records** on `aidennstutoring.com` if that domain also handles any Microsoft 365 email — domain forwarding for the web address doesn't require touching those.
 
 ---
 

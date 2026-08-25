@@ -1,24 +1,25 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 import { escapeHtml } from './validate.js'
 
-let transporter = null
+let resendClient = null
 
-function getTransporter() {
-  if (transporter) return transporter
+// Server-only Resend client. This file lives under /api and must NEVER be
+// imported from anything in /src — importing it client-side would ship the
+// Resend API key to every visitor's browser.
+function getResendClient() {
+  if (resendClient) return resendClient
 
-  const user = process.env.GMAIL_USER
-  const pass = process.env.GMAIL_APP_PASSWORD
-
-  if (!user || !pass) {
-    throw new Error('GMAIL_USER / GMAIL_APP_PASSWORD are not configured in environment variables.')
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not configured in environment variables.')
   }
 
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  })
-  return transporter
+  resendClient = new Resend(apiKey)
+  return resendClient
 }
+
+const MAIL_FROM = process.env.MAIL_FROM || 'Aidenn’s Tutoring <aidenn@aidennstutoring.org>'
+const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || 'aidenn@aidennstutoring.org'
 
 function detailLines(b) {
   return [
@@ -34,8 +35,22 @@ function detailLines(b) {
   ]
 }
 
+async function send({ to, replyTo, subject, text, html }) {
+  const { error } = await getResendClient().emails.send({
+    from: MAIL_FROM,
+    to,
+    replyTo,
+    subject,
+    text,
+    html,
+  })
+  if (error) {
+    throw new Error(`Resend error: ${error.message || JSON.stringify(error)}`)
+  }
+}
+
 export async function sendOwnerNotification(booking) {
-  const to = process.env.BOOKING_NOTIFICATION_EMAIL || process.env.GMAIL_USER
+  const to = process.env.BOOKING_NOTIFICATION_EMAIL || MAIL_REPLY_TO
   const lines = detailLines(booking)
 
   const text = [
@@ -59,8 +74,9 @@ export async function sendOwnerNotification(booking) {
     <p style="font-family:sans-serif;">Reply directly to this email to reach the parent, then update the booking's status in Supabase once confirmed.</p>
   `
 
-  await getTransporter().sendMail({
-    from: `"Aidenn's Tutoring" <${process.env.GMAIL_USER}>`,
+  // Owner notification intentionally replies to the parent, not MAIL_REPLY_TO,
+  // so hitting "reply" reaches the family directly.
+  await send({
     to,
     replyTo: booking.email,
     subject: `New session request: ${booking.student_name} (Grade ${booking.grade})`,
@@ -93,9 +109,9 @@ export async function sendParentReceipt(booking) {
     <p style="font-family:sans-serif;">Aidenn&rsquo;s Tutoring</p>
   `
 
-  await getTransporter().sendMail({
-    from: `"Aidenn's Tutoring" <${process.env.GMAIL_USER}>`,
+  await send({
     to: booking.email,
+    replyTo: MAIL_REPLY_TO,
     subject: `We received your request: Aidenn's Tutoring`,
     text,
     html,
