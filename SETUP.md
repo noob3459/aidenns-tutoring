@@ -36,20 +36,24 @@ Then do the real import (step 4 below) under the correct account/team.
 
 ### 1a. Admin authentication (passcode + secrets)
 
-The admin passcode used during development (`mathrocks26`) appeared in chat and is **compromised — never use it**. Set a brand-new one yourself, directly in Vercel, without typing it anywhere else:
+The passcode is **hardcoded server-only** in `api/_lib/adminAuth.js` (a
+`const ADMIN_PASSCODE = '...'`) rather than an environment variable — that
+file lives under `/api`, never imported by anything under `/src`, so it
+cannot end up in the client bundle regardless of how it's stored. To
+rotate it: edit that constant directly in the file, commit, and redeploy —
+don't paste the new value into chat with an AI assistant, since anything
+typed into a chat should be treated as potentially exposed.
 
-1. Choose a new, strong passcode. Don't tell it to an AI assistant, don't put it in a file, don't commit it — just remember it (or store it in a password manager).
-2. In Vercel: **Project Settings → Environment Variables** → add `ADMIN_PASSCODE` with that value.
-3. Generate two more secrets locally (these are random signing keys, not passwords — safe to generate via command line):
+1. Generate two secrets locally (these are random signing keys, not passwords — safe to generate via command line):
    ```bash
    openssl rand -hex 32   # use this value for ADMIN_SESSION_SECRET
    openssl rand -hex 32   # run again, use this DIFFERENT value for IP_HASH_SECRET
    ```
-4. Add both to Vercel as `ADMIN_SESSION_SECRET` and `IP_HASH_SECRET`.
-5. Add `ALLOWED_ADMIN_ORIGINS` = `https://aidennstutoring.org,https://www.aidennstutoring.org` (comma-separated, no spaces) — this is a CSRF guard on admin actions; `localhost` and Vercel preview URLs are always allowed automatically, no need to list those.
-6. Add `BOOKING_HORIZON_MONTHS` = `6` (or however many months ahead visitors should be able to book — past dates are never bookable regardless of this value).
+2. Add both to Vercel as `ADMIN_SESSION_SECRET` and `IP_HASH_SECRET`.
+3. Add `ALLOWED_ADMIN_ORIGINS` = `https://aidennstutoring.org,https://www.aidennstutoring.org` (comma-separated, no spaces) — this is a CSRF guard on admin actions; `localhost` and Vercel preview URLs are always allowed automatically, no need to list those.
+4. Add `BOOKING_HORIZON_MONTHS` = `6` (or however many months ahead visitors should be able to book — past dates are never bookable regardless of this value).
 
-All four are **server-only** — none of them are exposed to the browser.
+These are **server-only** — none of them are exposed to the browser.
 
 ## 2. Resend (for sending email)
 
@@ -118,14 +122,13 @@ not replacing them.
    | `MAIL_FROM` | `Aidenn’s Tutoring <aidenn@aidennstutoring.org>` |
    | `MAIL_REPLY_TO` | `aidenn@aidennstutoring.org` |
    | `BOOKING_NOTIFICATION_EMAIL` | where you want booking alerts sent (`aidenn@aidennstutoring.org` by default) |
-   | `ADMIN_PASSCODE` | the new passcode you chose in step 1a — type it directly into Vercel, not here |
    | `ADMIN_SESSION_SECRET` | from step 1a (`openssl rand -hex 32`) |
    | `IP_HASH_SECRET` | from step 1a (a *different* `openssl rand -hex 32`) |
    | `ALLOWED_ADMIN_ORIGINS` | `https://aidennstutoring.org,https://www.aidennstutoring.org` |
    | `BOOKING_HORIZON_MONTHS` | `6` |
 
 5. Click **Deploy**. This creates a preview deployment — nothing goes live on your domain yet.
-6. **Before testing the booking flow, log into `/admin` on the preview URL first** (your new passcode from step 1a) → **Availability** tab → click a few upcoming dates and add some time slots (or set up a recurring weekly rule and generate from it). The public booking calendar only shows dates/times you've explicitly created — nothing is bookable until you do this.
+6. **Before testing the booking flow, log into `/admin` on the preview URL first** (the passcode hardcoded in `api/_lib/adminAuth.js`, see step 1a) → **Availability** tab → click a few upcoming dates and add some time slots (or set up a recurring weekly rule and generate from it). The public booking calendar only shows dates/times you've explicitly created — nothing is bookable until you do this.
 7. Test the live preview URL: go through the booking wizard end-to-end, confirm you get the owner notification email and the parent gets the receipt email, and confirm the row shows up in Supabase's Table Editor (or the admin dashboard's date view).
 8. Only promote to Production / attach your domain once you've verified step 7 works.
 

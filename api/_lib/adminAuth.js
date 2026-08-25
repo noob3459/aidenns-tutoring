@@ -22,10 +22,15 @@ export function safeEquals(a, b) {
   return crypto.timingSafeEqual(digestA, digestB)
 }
 
+// Hardcoded server-only passcode — never imported by, or reachable from,
+// any file under /src, so it cannot end up in the client bundle. Rotate
+// by editing this constant directly (never via chat, never via an env
+// var, never logged) and redeploying.
+const ADMIN_PASSCODE = 'Matrix-6149-fe9587'
+
 export function verifyPasscode(submitted) {
-  const expected = process.env.ADMIN_PASSCODE
-  if (!expected || typeof submitted !== 'string' || submitted.length === 0) return false
-  return safeEquals(submitted, expected)
+  if (typeof submitted !== 'string' || submitted.length === 0) return false
+  return safeEquals(submitted, ADMIN_PASSCODE)
 }
 
 // --- Session cookie (signed, httpOnly, never contains the passcode) ----
