@@ -128,14 +128,26 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'Something went wrong saving your request. Please try again.' })
   }
 
+  // Best-effort fetch of the admin's Zoom link (site_settings.contact.zoomLink)
+  // to include in both emails below for Online bookings. Never blocks the
+  // booking itself — a settings-read hiccup just means the emails go out
+  // without a Zoom link, same as if the admin never set one.
+  let zoomLink = ''
+  try {
+    const { data: settingsRow } = await supabase.from('site_settings').select('data').eq('id', 1).maybeSingle()
+    zoomLink = settingsRow?.data?.contact?.zoomLink || ''
+  } catch (err) {
+    console.error('Zoom link lookup failed:', err)
+  }
+
   // Two independent Resend sends. allSettled (not all) so one failing
   // never blocks the other, and the booking is already saved in Supabase
   // either way — an email hiccup never loses the request. Each outcome is
   // logged with its Resend message ID (or the error) but never the
   // booking's notes/phone or any secret.
   const [ownerResult, receiptResult] = await Promise.allSettled([
-    sendOwnerNotification(booking),
-    sendParentReceipt(booking),
+    sendOwnerNotification(booking, zoomLink),
+    sendParentReceipt(booking, zoomLink),
   ])
 
   if (ownerResult.status === 'fulfilled') {

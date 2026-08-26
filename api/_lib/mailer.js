@@ -42,8 +42,8 @@ function parseBccList(raw) {
   return out
 }
 
-function detailLines(b) {
-  return [
+function detailLines(b, zoomLink) {
+  const lines = [
     ['Parent / Guardian', b.parent_name],
     ['Student', b.student_name],
     ['Grade', b.grade],
@@ -54,6 +54,8 @@ function detailLines(b) {
     ['Notes', b.notes || '(none)'],
     ['Booking ID', b.id],
   ]
+  if (b.format === 'Online' && zoomLink) lines.splice(4, 0, ['Zoom Link', zoomLink])
+  return lines
 }
 
 async function send({ to, bcc, replyTo, subject, text, html }) {
@@ -67,10 +69,10 @@ async function send({ to, bcc, replyTo, subject, text, html }) {
   return data?.id || null
 }
 
-export async function sendOwnerNotification(booking) {
+export async function sendOwnerNotification(booking, zoomLink) {
   const to = process.env.BOOKING_NOTIFICATION_TO || MAIL_REPLY_TO
   const bcc = parseBccList(process.env.BOOKING_NOTIFICATION_BCC)
-  const lines = detailLines(booking)
+  const lines = detailLines(booking, zoomLink)
 
   const text = [
     'New free session request. Action needed to confirm.',
@@ -87,7 +89,9 @@ export async function sendOwnerNotification(booking) {
       ${lines.map(([label, value]) => `
         <tr>
           <td style="padding:4px 12px 4px 0;color:#666;">${escapeHtml(label)}</td>
-          <td style="padding:4px 0;font-weight:600;">${escapeHtml(String(value))}</td>
+          <td style="padding:4px 0;font-weight:600;">${
+            label === 'Zoom Link' ? `<a href="${escapeHtml(value)}">${escapeHtml(value)}</a>` : escapeHtml(String(value))
+          }</td>
         </tr>`).join('')}
     </table>
     <p style="font-family:sans-serif;">Reply directly to this email to reach the parent, then update the booking's status in Supabase once confirmed.</p>
@@ -105,13 +109,16 @@ export async function sendOwnerNotification(booking) {
   })
 }
 
-export async function sendParentReceipt(booking) {
+export async function sendParentReceipt(booking, zoomLink) {
+  const includeZoom = booking.format === 'Online' && Boolean(zoomLink)
+
   const text = [
     `Hi ${booking.parent_name},`,
     '',
     `Thanks for requesting a free math session for ${booking.student_name} (Grade ${booking.grade}) on ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
     '',
     'Your request has been received, but it is NOT confirmed yet. Aidenn personally reviews and confirms every session — you’ll hear back directly once it’s confirmed.',
+    ...(includeZoom ? ['', `Once confirmed, join here: ${zoomLink}`] : []),
     '',
     'If you don’t hear back within a day or two, feel free to reply to this email directly.',
     '',
@@ -125,6 +132,10 @@ export async function sendParentReceipt(booking) {
     <p style="font-family:sans-serif;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;">
       <strong>Your request has been received, but it is not confirmed yet.</strong> Aidenn personally reviews and confirms every session — you'll hear back directly once it's confirmed.
     </p>
+    ${includeZoom ? `
+    <p style="font-family:sans-serif;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;">
+      Once confirmed, join your session here: <a href="${escapeHtml(zoomLink)}">${escapeHtml(zoomLink)}</a>
+    </p>` : ''}
     <p style="font-family:sans-serif;">If you don't hear back within a day or two, just reply to this email.</p>
     <p style="font-family:sans-serif;">Aidenn&rsquo;s Tutoring</p>
   `

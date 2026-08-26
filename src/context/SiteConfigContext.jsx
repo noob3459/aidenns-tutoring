@@ -12,6 +12,7 @@ export const DEFAULT_CONFIG = {
     emailLabel: 'Email',
     servingLabel: 'Serving',
     hoursLabel: 'Hours',
+    zoomLink: '',
   },
   hero: {
     eyebrow: '{grades} Math Tutoring · 100% Free',

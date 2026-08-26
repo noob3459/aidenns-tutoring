@@ -141,7 +141,11 @@ function ContactTab({ config, updateConfig }) {
         <Input label="Donation Email" value={form.donateEmail} onChange={(e) => set('donateEmail', e.target.value)} placeholder="donate@yoursite.org" />
         <Input label="Serving Area" value={form.serving} onChange={(e) => set('serving', e.target.value)} placeholder="Online nationwide & in-person locally" />
         <Input label="Hours" value={form.hours} onChange={(e) => set('hours', e.target.value)} placeholder="Mon-Fri · 3:00-7:00 PM" />
+        <Input label="Zoom Meeting Link" value={form.zoomLink} onChange={(e) => set('zoomLink', e.target.value)} placeholder="https://zoom.us/j/1234567890" />
       </div>
+      <p className="text-muted text-xs mt-3">
+        Your Personal Meeting Room link. Included automatically in the confirmation emails for every Online booking &mdash; parents and you both get it, no separate invite needed.
+      </p>
       <SaveBar onSave={save} saved={saved} error={error} />
     </div>
   )
@@ -187,6 +191,16 @@ function AvailabilityTab() {
   const [ruleForm, setRuleForm] = useState({ weekday: 1, startTime: '15:00', endTime: '18:00', durationMinutes: 30 })
   const [generateWeeks, setGenerateWeeks] = useState(8)
 
+  const [history, setHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+
+  const loadHistory = () => {
+    setHistoryLoading(true)
+    adminFetch('/api/admin/availability?history=1')
+      .then(({ data }) => setHistory(data.bookings || []))
+      .finally(() => setHistoryLoading(false))
+  }
+
   const loadMonth = (m) => {
     setMonthLoading(true)
     adminFetch(`/api/admin/availability?month=${m}`)
@@ -211,6 +225,7 @@ function AvailabilityTab() {
 
   useEffect(() => { loadMonth(month) }, [month])
   useEffect(() => { loadRules() }, [])
+  useEffect(() => { loadHistory() }, [])
   useEffect(() => { if (selectedDate) loadDetail(selectedDate) }, [selectedDate])
 
   // Derive a coarse status per date for the calendar (available/full/closed)
@@ -224,6 +239,7 @@ function AvailabilityTab() {
   const refreshAll = () => {
     loadMonth(month)
     if (selectedDate) loadDetail(selectedDate)
+    loadHistory()
   }
 
   const toggleClosed = async (isClosed) => {
@@ -565,6 +581,31 @@ function AvailabilityTab() {
             <RefreshCw className="h-4 w-4" /> Generate Slots for Next {generateWeeks} Weeks
           </button>
         </div>
+      </div>
+
+      <div className="mt-10 pt-8 border-t border-divider">
+        <h3 className="font-display font-bold text-lg text-ink mb-1">Booking History</h3>
+        <p className="text-muted text-sm mb-4">Confirmed and completed sessions that have already happened, most recent first{history.length >= 300 ? ' (showing the most recent 300)' : ''}.</p>
+
+        {historyLoading ? (
+          <div className="flex items-center gap-2 text-muted text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading&hellip;</div>
+        ) : history.length === 0 ? (
+          <p className="text-muted text-sm">No past confirmed or completed sessions yet.</p>
+        ) : (
+          <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-1">
+            {history.map((b) => (
+              <div key={b.id} className="bg-white border border-divider rounded-xl p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-ink">{b.parent_name} &middot; {b.student_name} (Grade {b.grade})</p>
+                  <StatusPill status={b.status} />
+                </div>
+                <p className="text-muted text-xs mt-0.5">{b.requested_date_label} at {b.requested_time} &middot; {b.format}</p>
+                <p className="text-muted text-xs mt-0.5">{b.email} &middot; {b.phone}</p>
+                {b.notes && <p className="text-muted text-xs mt-1 italic">&ldquo;{b.notes}&rdquo;</p>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

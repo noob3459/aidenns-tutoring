@@ -17,6 +17,7 @@ const SCHEMA = {
   contact: {
     phone: 'string', phoneTel: 'string', email: 'string', donateEmail: 'string', serving: 'string', hours: 'string',
     phoneLabel: 'string', emailLabel: 'string', servingLabel: 'string', hoursLabel: 'string',
+    zoomLink: { url: true },
   },
   hero: { eyebrow: 'string', line1: 'string', line2: 'string', subtext: 'string', pillPrefix: 'string', pillText: 'string', scrollLabel: 'string', imageUrl: { url: true } },
   footer: {

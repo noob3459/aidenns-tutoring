@@ -11,7 +11,7 @@ import { isValidMonthISO, isValidDateISO, getPacificTodayISO } from '../_lib/tim
 // same validation, same error messages, same Supabase calls — just
 // reorganized under one handler with an explicit action allowlist.
 //
-// GET  ?month=YYYY-MM | ?date=YYYY-MM-DD | ?rules=1
+// GET  ?month=YYYY-MM | ?date=YYYY-MM-DD | ?rules=1 | ?history=1
 // POST { action: <one of ALLOWED_ACTIONS>, ...fields }
 //
 // requireAdmin() (session + CSRF/origin check) gates the entire handler,
@@ -122,6 +122,33 @@ async function getRules(res, supabase) {
     .order('start_time')
   if (error) return res.status(500).json({ ok: false, error: 'Could not load recurring rules.' })
   return res.status(200).json({ rules: data || [] })
+}
+
+const BOOKING_HISTORY_MAX = 300
+
+// Sessions that have already happened: confirmed or completed bookings
+// dated today or earlier, newest first. Deliberately includes
+// 'confirmed' (not just 'completed') — a past session left confirmed
+// but never explicitly marked completed is still history, not upcoming.
+async function getBookingHistory(res, supabase) {
+  const today = getPacificTodayISO()
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, parent_name, student_name, grade, format, requested_date, requested_date_label, requested_time, email, phone, notes, status, created_at')
+    .in('status', ['confirmed', 'completed'])
+    .lte('requested_date', today)
+    .order('requested_date', { ascending: false })
+    // requested_time is a display string (e.g. "3:30 PM", no leading
+    // zero) — not safely sortable as text once hours reach 10-12, so
+    // created_at (a real timestamp) is the tiebreaker instead.
+    .order('created_at', { ascending: false })
+    .limit(BOOKING_HISTORY_MAX)
+
+  if (error) {
+    console.error('Booking history query error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not load booking history.' })
+  }
+  return res.status(200).json({ bookings: data || [] })
 }
 
 /* ---------------- POST: actions ---------------- */
@@ -420,7 +447,8 @@ export default async function handler(req, res) {
     if (req.query.date) return getDateDetail(res, supabase, req.query.date)
     if (req.query.month) return getMonthSummary(res, supabase, req.query.month)
     if (req.query.rules) return getRules(res, supabase)
-    return res.status(400).json({ ok: false, error: 'Specify month, date, or rules.' })
+    if (req.query.history) return getBookingHistory(res, supabase)
+    return res.status(400).json({ ok: false, error: 'Specify month, date, rules, or history.' })
   }
 
   if (req.method === 'POST') {
