@@ -370,32 +370,34 @@ function AvailabilityTab() {
       <p className="text-muted text-sm mb-6">Click a date to manage its time slots, close it, or review its bookings.</p>
 
       <div className="grid md:grid-cols-2 gap-8">
-        <MonthCalendar
-          month={month}
-          today={todayISO}
-          minMonth={getPacificCurrentMonth()}
-          maxMonth={undefined}
-          allowSelectAnyStatus
-          dayStatus={dayStatus}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          onMonthChange={setMonth}
-          loading={monthLoading}
-          renderBadge={(date) => {
-            const d = monthDays[date]
-            if (!d) return null
-            const bits = []
-            if (d.requested) bits.push(`${d.requested}r`)
-            if (d.confirmed) bits.push(`${d.confirmed}c`)
-            return bits.length ? (
-              <span className="absolute -top-1 -right-1 bg-accent text-deep text-[8px] font-bold rounded-full px-1 leading-tight">
-                {bits.join(' ')}
-              </span>
-            ) : null
-          }}
-        />
+        <div className="min-w-0 overflow-x-auto">
+          <MonthCalendar
+            month={month}
+            today={todayISO}
+            minMonth={getPacificCurrentMonth()}
+            maxMonth={undefined}
+            allowSelectAnyStatus
+            dayStatus={dayStatus}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            onMonthChange={setMonth}
+            loading={monthLoading}
+            renderBadge={(date) => {
+              const d = monthDays[date]
+              if (!d) return null
+              const bits = []
+              if (d.requested) bits.push(`${d.requested}r`)
+              if (d.confirmed) bits.push(`${d.confirmed}c`)
+              return bits.length ? (
+                <span className="absolute -top-1 -right-1 bg-accent text-deep text-[8px] font-bold rounded-full px-1 leading-tight">
+                  {bits.join(' ')}
+                </span>
+              ) : null
+            }}
+          />
+        </div>
 
-        <div>
+        <div className="min-w-0">
           {!selectedDate ? (
             <div className="h-full flex items-center justify-center text-center text-muted text-sm bg-background border border-dashed border-divider rounded-3xl p-8">
               Select a date on the calendar to manage its availability.
@@ -498,17 +500,17 @@ function AvailabilityTab() {
               <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t border-divider">
                 <div>
                   <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Add one slot</p>
-                  <div className="flex gap-2">
-                    <input type="time" value={addTime} onChange={(e) => setAddTime(e.target.value)} className="admin-input" />
-                    <input type="number" min={5} max={240} value={addDuration} onChange={(e) => setAddDuration(e.target.value)} className="admin-input w-20" title="Duration (min)" />
+                  <div className="flex flex-wrap gap-2">
+                    <input type="time" value={addTime} onChange={(e) => setAddTime(e.target.value)} className="admin-input min-w-0 flex-1" />
+                    <input type="number" min={5} max={240} value={addDuration} onChange={(e) => setAddDuration(e.target.value)} className="admin-input w-20 shrink-0" title="Duration (min)" />
                     <button onClick={addSlot} disabled={busy} className="shrink-0 bg-primary/10 text-primary-dark px-3 rounded-2xl"><Plus className="h-4 w-4" /></button>
                   </div>
                 </div>
                 <div>
                   <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Generate a range</p>
-                  <div className="flex gap-2">
-                    <input type="time" value={genStart} onChange={(e) => setGenStart(e.target.value)} className="admin-input" />
-                    <input type="time" value={genEnd} onChange={(e) => setGenEnd(e.target.value)} className="admin-input" />
+                  <div className="flex flex-wrap gap-2">
+                    <input type="time" value={genStart} onChange={(e) => setGenStart(e.target.value)} className="admin-input min-w-0 flex-1" />
+                    <input type="time" value={genEnd} onChange={(e) => setGenEnd(e.target.value)} className="admin-input min-w-0 flex-1" />
                     <button onClick={generateSlots} disabled={busy} className="shrink-0 bg-primary/10 text-primary-dark px-3 rounded-2xl"><Plus className="h-4 w-4" /></button>
                   </div>
                   <input type="number" min={5} max={240} value={genDuration} onChange={(e) => setGenDuration(e.target.value)} className="admin-input mt-2 w-24" title="Duration (min)" />
@@ -547,14 +549,14 @@ function AvailabilityTab() {
           ))}
         </div>
 
-        <div className="grid sm:grid-cols-5 gap-2 mb-3">
-          <select value={ruleForm.weekday} onChange={(e) => setRuleForm({ ...ruleForm, weekday: Number(e.target.value) })} className="admin-input">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 mb-3">
+          <select value={ruleForm.weekday} onChange={(e) => setRuleForm({ ...ruleForm, weekday: Number(e.target.value) })} className="admin-input min-w-0">
             {WEEKDAY_NAMES.map((w, i) => <option key={w} value={i}>{w}</option>)}
           </select>
-          <input type="time" value={ruleForm.startTime} onChange={(e) => setRuleForm({ ...ruleForm, startTime: e.target.value })} className="admin-input" />
-          <input type="time" value={ruleForm.endTime} onChange={(e) => setRuleForm({ ...ruleForm, endTime: e.target.value })} className="admin-input" />
-          <input type="number" min={5} max={240} value={ruleForm.durationMinutes} onChange={(e) => setRuleForm({ ...ruleForm, durationMinutes: Number(e.target.value) })} className="admin-input" title="Duration (min)" />
-          <button onClick={createRule} disabled={busy} className="inline-flex items-center justify-center gap-1.5 bg-primary/10 text-primary-dark rounded-2xl text-sm font-medium"><Plus className="h-4 w-4" /> Add Rule</button>
+          <input type="time" value={ruleForm.startTime} onChange={(e) => setRuleForm({ ...ruleForm, startTime: e.target.value })} className="admin-input min-w-0" />
+          <input type="time" value={ruleForm.endTime} onChange={(e) => setRuleForm({ ...ruleForm, endTime: e.target.value })} className="admin-input min-w-0" />
+          <input type="number" min={5} max={240} value={ruleForm.durationMinutes} onChange={(e) => setRuleForm({ ...ruleForm, durationMinutes: Number(e.target.value) })} className="admin-input min-w-0" title="Duration (min)" />
+          <button onClick={createRule} disabled={busy} className="min-w-0 col-span-2 lg:col-span-1 inline-flex items-center justify-center gap-1.5 bg-primary/10 text-primary-dark rounded-2xl text-sm font-medium"><Plus className="h-4 w-4" /> Add Rule</button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -850,7 +852,7 @@ function AdminConsole() {
           ))}
         </nav>
 
-        <div className={tab === 'editor' ? '' : 'bg-white border border-divider rounded-5xl p-6 sm:p-10 shadow-sm'}>
+        <div className={tab === 'editor' ? 'min-w-0' : 'min-w-0 bg-white border border-divider rounded-5xl p-6 sm:p-10 shadow-sm'}>
           {tab === 'contact' && <ContactTab config={config} updateConfig={updateConfig} />}
           {tab === 'availability' && <AvailabilityTab />}
           {tab === 'content' && <ContentTab config={config} updateConfig={updateConfig} />}
