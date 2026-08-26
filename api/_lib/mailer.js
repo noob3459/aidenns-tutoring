@@ -21,6 +21,27 @@ function getResendClient() {
 const MAIL_FROM = process.env.MAIL_FROM || 'Aidenn’s Tutoring <aidenn@aidennstutoring.org>'
 const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || 'aidenn@aidennstutoring.org'
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Safely parses a comma-separated BCC address list from an env var: trims
+// each entry, drops empties, validates the format, and de-duplicates
+// (case-insensitive). A malformed entry is silently skipped rather than
+// sent to Resend or allowed to throw.
+function parseBccList(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return []
+  const seen = new Set()
+  const out = []
+  for (const entry of raw.split(',')) {
+    const addr = entry.trim()
+    if (!addr || !EMAIL_RE.test(addr)) continue
+    const key = addr.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(addr)
+  }
+  return out
+}
+
 function detailLines(b) {
   return [
     ['Parent / Guardian', b.parent_name],
@@ -35,22 +56,20 @@ function detailLines(b) {
   ]
 }
 
-async function send({ to, replyTo, subject, text, html }) {
-  const { error } = await getResendClient().emails.send({
-    from: MAIL_FROM,
-    to,
-    replyTo,
-    subject,
-    text,
-    html,
-  })
+async function send({ to, bcc, replyTo, subject, text, html }) {
+  const payload = { from: MAIL_FROM, to, replyTo, subject, text, html }
+  if (bcc && bcc.length) payload.bcc = bcc
+
+  const { data, error } = await getResendClient().emails.send(payload)
   if (error) {
     throw new Error(`Resend error: ${error.message || JSON.stringify(error)}`)
   }
+  return data?.id || null
 }
 
 export async function sendOwnerNotification(booking) {
-  const to = process.env.BOOKING_NOTIFICATION_EMAIL || MAIL_REPLY_TO
+  const to = process.env.BOOKING_NOTIFICATION_TO || MAIL_REPLY_TO
+  const bcc = parseBccList(process.env.BOOKING_NOTIFICATION_BCC)
   const lines = detailLines(booking)
 
   const text = [
@@ -76,8 +95,9 @@ export async function sendOwnerNotification(booking) {
 
   // Owner notification intentionally replies to the parent, not MAIL_REPLY_TO,
   // so hitting "reply" reaches the family directly.
-  await send({
+  return send({
     to,
+    bcc,
     replyTo: booking.email,
     subject: `New session request: ${booking.student_name} (Grade ${booking.grade})`,
     text,
@@ -91,7 +111,7 @@ export async function sendParentReceipt(booking) {
     '',
     `Thanks for requesting a free math session for ${booking.student_name} (Grade ${booking.grade}) on ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
     '',
-    'This is a REQUEST, not a confirmed booking yet. We will personally reach out to confirm the time.',
+    'Your request has been received, but it is NOT confirmed yet. Aidenn personally reviews and confirms every session — you’ll hear back directly once it’s confirmed.',
     '',
     'If you don’t hear back within a day or two, feel free to reply to this email directly.',
     '',
@@ -103,13 +123,13 @@ export async function sendParentReceipt(booking) {
     <p style="font-family:sans-serif;">Thanks for requesting a free math session for <strong>${escapeHtml(booking.student_name)}</strong> (Grade ${escapeHtml(booking.grade)}) on
       <strong>${escapeHtml(booking.requested_date_label)} at ${escapeHtml(booking.requested_time)}</strong>, ${escapeHtml(booking.format.toLowerCase())}.</p>
     <p style="font-family:sans-serif;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;">
-      <strong>This is a request, not a confirmed booking yet.</strong> We'll personally reach out to confirm the time.
+      <strong>Your request has been received, but it is not confirmed yet.</strong> Aidenn personally reviews and confirms every session — you'll hear back directly once it's confirmed.
     </p>
     <p style="font-family:sans-serif;">If you don't hear back within a day or two, just reply to this email.</p>
     <p style="font-family:sans-serif;">Aidenn&rsquo;s Tutoring</p>
   `
 
-  await send({
+  return send({
     to: booking.email,
     replyTo: MAIL_REPLY_TO,
     subject: `We received your request: Aidenn's Tutoring`,

@@ -62,9 +62,10 @@ These are **server-only** — none of them are exposed to the browser.
 3. Copy the key immediately — Resend only shows it once.
    - `RESEND_API_KEY` = that key
 4. Set the fixed values (already filled in for you in `.env.example`):
-   - `MAIL_FROM` = `Aidenn’s Tutoring <aidenn@aidennstutoring.org>`
-   - `MAIL_REPLY_TO` = `aidenn@aidennstutoring.org`
-   - `BOOKING_NOTIFICATION_EMAIL` = `aidenn@aidennstutoring.org` (change this if you want alerts to land somewhere else)
+   - `MAIL_FROM` = `Aidenn’s Tutoring <aidenn@aidennstutoring.org>` — sender for both the owner notification and the customer receipt.
+   - `MAIL_REPLY_TO` = `aidenn@aidennstutoring.org` — Reply-To on the customer receipt only.
+   - `BOOKING_NOTIFICATION_TO` = `aidennq29@gmail.com` — primary recipient of the owner notification.
+   - `BOOKING_NOTIFICATION_BCC` = `aidenn@aidennstutoring.com,aidenn@aidennstutoring.org` — comma-separated BCC list on the owner notification only (never on the customer receipt); change/extend this list if you want alerts to land somewhere else too.
 5. **Before you can actually send from `aidenn@aidennstutoring.org`, the domain must be verified in Resend.** See the next section — do this before deploying, or Resend will reject the send.
 
 ### 2a. Verify `aidennstutoring.org` in Resend through GoDaddy
@@ -121,7 +122,8 @@ not replacing them.
    | `RESEND_API_KEY` | from Resend step 3 |
    | `MAIL_FROM` | `Aidenn’s Tutoring <aidenn@aidennstutoring.org>` |
    | `MAIL_REPLY_TO` | `aidenn@aidennstutoring.org` |
-   | `BOOKING_NOTIFICATION_EMAIL` | where you want booking alerts sent (`aidenn@aidennstutoring.org` by default) |
+   | `BOOKING_NOTIFICATION_TO` | `aidennq29@gmail.com` |
+   | `BOOKING_NOTIFICATION_BCC` | `aidenn@aidennstutoring.com,aidenn@aidennstutoring.org` |
    | `ADMIN_SESSION_SECRET` | from step 1a (`openssl rand -hex 32`) |
    | `IP_HASH_SECRET` | from step 1a (a *different* `openssl rand -hex 32`) |
    | `ALLOWED_ADMIN_ORIGINS` | `https://aidennstutoring.org,https://www.aidennstutoring.org` |
