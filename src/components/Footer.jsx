@@ -1,11 +1,34 @@
-import { Link } from 'react-router-dom'
+import { useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import Editable from './editor/Editable.jsx'
 
+const LOGO_CLICK_THRESHOLD = 5
+const LOGO_CLICK_RESET_MS = 1500
+
 export default function Footer() {
   const { config } = useSiteConfig()
   const { contact, footer } = config
+  const navigate = useNavigate()
+  const logoClickCount = useRef(0)
+  const logoClickTimer = useRef(null)
+
+  // Hidden admin shortcut: click the footer logo 5 times in a row (within
+  // 1.5s of each other) to jump to /admin — intentionally has no visual
+  // affordance, so it stays undiscoverable to regular visitors.
+  const handleLogoClick = () => {
+    logoClickCount.current += 1
+    if (logoClickTimer.current) clearTimeout(logoClickTimer.current)
+
+    if (logoClickCount.current >= LOGO_CLICK_THRESHOLD) {
+      logoClickCount.current = 0
+      navigate('/admin')
+      return
+    }
+
+    logoClickTimer.current = setTimeout(() => { logoClickCount.current = 0 }, LOGO_CLICK_RESET_MS)
+  }
 
   return (
     <footer className="relative bg-deep text-white rounded-t-6xl mt-12 overflow-hidden">
@@ -34,6 +57,7 @@ export default function Footer() {
                 src="/images/aidenns-tutoring-logo-premium.png"
                 alt="Aidenn's Tutoring"
                 className="h-14 sm:h-16 w-auto"
+                onClick={handleLogoClick}
               />
             </div>
             <p className="text-white/50 text-sm leading-relaxed max-w-xs">
