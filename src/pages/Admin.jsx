@@ -498,7 +498,7 @@ function AvailabilityTab() {
               )}
 
               <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t border-divider">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Add one slot</p>
                   <div className="flex flex-wrap gap-2">
                     <input type="time" value={addTime} onChange={(e) => setAddTime(e.target.value)} className="admin-input min-w-0 flex-1" />
@@ -506,7 +506,7 @@ function AvailabilityTab() {
                     <button onClick={addSlot} disabled={busy} className="shrink-0 bg-primary/10 text-primary-dark px-3 rounded-2xl"><Plus className="h-4 w-4" /></button>
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Generate a range</p>
                   <div className="flex flex-wrap gap-2">
                     <input type="time" value={genStart} onChange={(e) => setGenStart(e.target.value)} className="admin-input min-w-0 flex-1" />
@@ -519,12 +519,12 @@ function AvailabilityTab() {
 
               <div>
                 <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Copy this date&rsquo;s slots to&hellip;</p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <input
                     value={copyTargets}
                     onChange={(e) => setCopyTargets(e.target.value)}
                     placeholder="2026-09-01, 2026-09-08, ..."
-                    className="admin-input flex-1"
+                    className="admin-input min-w-0 flex-1"
                   />
                   <button onClick={copyToTargets} disabled={busy} className="shrink-0 bg-primary/10 text-primary-dark px-3 rounded-2xl"><Copy className="h-4 w-4" /></button>
                 </div>
