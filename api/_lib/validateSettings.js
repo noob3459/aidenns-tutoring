@@ -92,13 +92,22 @@ function validateNumberField(value, path, errors) {
 // Empty string is a valid "no image set" state. A non-empty value must be
 // a plain http(s) URL — rejects javascript:/data: and anything else that
 // could end up in an <img src> unexpectedly, even though React already
-// doesn't execute string attribute values as script.
+// doesn't execute string attribute values as script. Also accepts a
+// same-origin relative path (a single leading "/", not "//" — that
+// would be protocol-relative to an external host) since several image
+// fields (hero.imageUrl, navbar/footer.logoUrl, etc.) default to bundled
+// files under /public/images rather than an uploaded absolute URL.
 function validateUrlField(value, path, errors) {
   if (typeof value !== 'string') { errors.push(`${path} must be a string.`); return null }
   const trimmed = value.trim()
   if (trimmed === '') return ''
   if (trimmed.length > STRING_FIELD_MAX) { errors.push(`${path} is too long.`); return null }
-  if (!/^https?:\/\//i.test(trimmed)) { errors.push(`${path} must be a valid http(s) URL.`); return null }
+  const isAbsoluteUrl = /^https?:\/\//i.test(trimmed)
+  const isRelativePath = trimmed.startsWith('/') && !trimmed.startsWith('//')
+  if (!isAbsoluteUrl && !isRelativePath) {
+    errors.push(`${path} must be a valid http(s) URL or a site-relative path.`)
+    return null
+  }
   return trimmed
 }
 
