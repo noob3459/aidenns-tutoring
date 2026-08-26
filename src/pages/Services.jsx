@@ -6,6 +6,7 @@ import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import { SERVICE_ICONS } from '../data/services.js'
 import PageHeader from '../components/PageHeader.jsx'
 import Editable from '../components/editor/Editable.jsx'
+import CustomBlocks from '../components/editor/CustomBlocks.jsx'
 import { runAnimationPreset } from '../lib/animationPresets.js'
 
 function ServicesGrid() {
@@ -46,16 +47,17 @@ function ServicesGrid() {
                     {config.services.badgeText}
                   </Editable>
                 </div>
-                <Editable id={`services.items.${i}.title`} as="h3" contentPath={`services.items.${i}.title`} label={`Service ${i + 1} Title`} className="font-display font-bold text-xl sm:text-2xl mb-3">
+                <Editable id={`services.items.${i}.title`} as="h3" contentPath={`services.items.${i}.title`} label={`Service ${i + 1} Title`} className="font-display font-bold text-xl sm:text-2xl mb-3" deletableArrayPath="services.items" deletableIndex={i}>
                   {svc.title}
                 </Editable>
-                <Editable id={`services.items.${i}.text`} as="p" contentPath={`services.items.${i}.text`} label={`Service ${i + 1} Text`} className="text-white/55 text-sm leading-relaxed">
+                <Editable id={`services.items.${i}.text`} as="p" contentPath={`services.items.${i}.text`} label={`Service ${i + 1} Text`} className="text-white/55 text-sm leading-relaxed" deletableArrayPath="services.items" deletableIndex={i}>
                   {svc.text}
                 </Editable>
               </div>
             )
           })}
         </div>
+        <CustomBlocks sectionId="services.grid" className="max-w-3xl mx-auto space-y-3 mt-8" />
 
         <div className="text-center mt-16">
           <Link to="/booking" className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-7 py-3.5 rounded-full shadow-xl shadow-primary/30">

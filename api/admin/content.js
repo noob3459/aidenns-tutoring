@@ -1,19 +1,32 @@
+import crypto from 'node:crypto'
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { validateSettings } from '../_lib/validateSettings.js'
 
-// Consolidates admin site-settings (read/update) and booking status
-// transitions into one deployed function, to stay well under Vercel's
-// Hobby serverless function limit.
+// Consolidates admin site-settings (read/update), booking status
+// transitions, and Visual Editor image uploads into one deployed
+// function, to stay well under Vercel's Hobby serverless function limit.
 //
 // GET             -> current site_settings
 // POST { action: 'update-settings', ...patch }  -> validated, merged, saved
 // POST { action: 'booking-status', bookingId, status } -> calls the
 //   update_booking_status DB function (same transactional state-machine
 //   enforcement as before — unchanged)
+// POST { action: 'upload-image', contentType, dataBase64 } -> uploads to
+//   the site-images Storage bucket (service_role only — see
+//   supabase/schema.sql), returns the public URL
 
-const ALLOWED_ACTIONS = ['update-settings', 'booking-status']
+const ALLOWED_ACTIONS = ['update-settings', 'booking-status', 'upload-image']
 const ALLOWED_STATUSES = ['pending', 'confirmed', 'declined', 'completed', 'cancelled']
+
+const IMAGE_BUCKET = 'site-images'
+const ALLOWED_IMAGE_TYPES = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+}
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024 // 5MB, checked post-decode
 
 function deepMerge(base, patch) {
   if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
@@ -76,6 +89,49 @@ async function bookingStatus(res, supabase, body) {
   return res.status(200).json({ ok: true, booking: data })
 }
 
+// The client's own filename is never used for the storage key — a fresh
+// random name is always generated server-side, so there's no path-
+// traversal/overwrite risk from a malicious or accidental filename.
+async function uploadImage(res, supabase, body) {
+  const ext = ALLOWED_IMAGE_TYPES[body.contentType]
+  if (!ext) {
+    return res.status(400).json({ ok: false, error: 'Unsupported image type. Use PNG, JPEG, WEBP, or GIF.' })
+  }
+  if (typeof body.dataBase64 !== 'string' || !body.dataBase64) {
+    return res.status(400).json({ ok: false, error: 'Image data is required.' })
+  }
+
+  // Tolerate a full data: URL (data:image/png;base64,....) as well as a
+  // bare base64 payload — FileReader.readAsDataURL produces the former.
+  const raw = body.dataBase64.includes(',') ? body.dataBase64.split(',').pop() : body.dataBase64
+
+  let buffer
+  try {
+    buffer = Buffer.from(raw, 'base64')
+  } catch {
+    return res.status(400).json({ ok: false, error: 'Invalid image data.' })
+  }
+
+  if (!buffer.length || buffer.length > MAX_IMAGE_BYTES) {
+    return res.status(400).json({ ok: false, error: `Image must be under ${MAX_IMAGE_BYTES / (1024 * 1024)}MB.` })
+  }
+
+  const path = `${crypto.randomUUID()}.${ext}`
+
+  const { error } = await supabase.storage.from(IMAGE_BUCKET).upload(path, buffer, {
+    contentType: body.contentType,
+    upsert: false,
+  })
+
+  if (error) {
+    console.error('Image upload error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not upload that image.' })
+  }
+
+  const { data } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path)
+  return res.status(200).json({ ok: true, url: data.publicUrl })
+}
+
 export default async function handler(req, res) {
   if (!requireAdmin(req, res)) return
 
@@ -104,6 +160,7 @@ export default async function handler(req, res) {
 
     if (body.action === 'update-settings') return updateSettings(req, res, supabase, body)
     if (body.action === 'booking-status') return bookingStatus(res, supabase, body)
+    if (body.action === 'upload-image') return uploadImage(res, supabase, body)
   }
 
   res.setHeader('Allow', 'GET, POST')

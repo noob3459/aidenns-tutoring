@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Check, MousePointerClick, RefreshCw, Save } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Check, ImagePlus, MousePointerClick, Plus, RefreshCw, Save, Trash2 } from 'lucide-react'
 import { useSiteConfig } from '../../context/SiteConfigContext.jsx'
 import { useEditorSelection } from '../../context/EditorSelectionContext.jsx'
 import { getAtPath, setAtPath } from '../../lib/configPaths.js'
@@ -11,44 +11,57 @@ function rgbToHex(rgbString) {
   return '#' + m.slice(0, 3).map((n) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0')).join('')
 }
 
-export default function EditorSidePanel() {
-  const { config, applyLocalPatch, updateConfig } = useSiteConfig()
-  const { selectedId } = useEditorSelection()
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('Could not read that file.'))
+    reader.readAsDataURL(file)
+  })
+}
 
-  const [meta, setMeta] = useState(null) // { kind, contentPath, label, defaultColor, defaultFontSize }
-  const [dirtyKeys, setDirtyKeys] = useState(() => new Set())
+export default function EditorSidePanel() {
+  const { config, applyLocalPatch, updateConfig, dirtyKeys } = useSiteConfig()
+  const { selectedId, setSelectedId } = useEditorSelection()
+  const fileInputRef = useRef(null)
+
+  const [meta, setMeta] = useState(null) // { kind, contentPath, label, deletableArrayPath, deletableIndex, defaultColor, defaultFontSize }
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
   useEffect(() => {
     setSaved(false)
+    setUploadError('')
     if (!selectedId) { setMeta(null); return }
     const node = document.querySelector(`[data-editor-id="${selectedId}"]`)
     if (!node) { setMeta(null); return }
     const computed = window.getComputedStyle(node)
+    const arrayPath = node.getAttribute('data-editor-array-path') || ''
+    const arrayIndexRaw = node.getAttribute('data-editor-array-index')
     setMeta({
       kind: node.getAttribute('data-editor-kind') || 'text',
       contentPath: node.getAttribute('data-editor-content-path') || '',
       label: node.getAttribute('data-editor-label') || selectedId,
+      deletableArrayPath: arrayPath || null,
+      deletableIndex: arrayPath && arrayIndexRaw !== '' ? Number(arrayIndexRaw) : null,
       defaultColor: rgbToHex(computed.color),
       defaultFontSize: Math.round(parseFloat(computed.fontSize)) || 16,
     })
   }, [selectedId, config])
 
-  const markDirty = (topKey) => setDirtyKeys((prev) => new Set(prev).add(topKey))
-
+  // Every local edit routes through applyLocalPatch, which already
+  // records history and tracks dirtyKeys centrally (SiteConfigContext) —
+  // nothing here needs to track dirtiness itself.
   const commitText = (value) => {
     if (!meta?.contentPath) return
-    const patch = setAtPath(config, meta.contentPath, value)
-    applyLocalPatch(patch)
-    markDirty(Object.keys(patch)[0])
+    applyLocalPatch(setAtPath(config, meta.contentPath, value))
   }
 
   const commitStyle = (field, value) => {
     const existing = config.elementStyles?.[selectedId] || {}
-    const patch = { elementStyles: { ...config.elementStyles, [selectedId]: { ...existing, [field]: value } } }
-    applyLocalPatch(patch)
-    markDirty('elementStyles')
+    applyLocalPatch({ elementStyles: { ...config.elementStyles, [selectedId]: { ...existing, [field]: value } } })
   }
 
   const handleSave = async () => {
@@ -58,10 +71,7 @@ export default function EditorSidePanel() {
     for (const key of dirtyKeys) patch[key] = config[key]
     const result = await updateConfig(patch)
     setSaving(false)
-    if (result.ok) {
-      setDirtyKeys(new Set())
-      setSaved(true)
-    }
+    if (result.ok) setSaved(true)
   }
 
   const handleReplay = () => {
@@ -70,6 +80,52 @@ export default function EditorSidePanel() {
     if (!nodes.length) return
     const style = config.elementStyles?.[selectedId] || {}
     runAnimationPreset(style.animation || 'fade-in', nodes, { speed: style.animationSpeed })
+  }
+
+  const handleAddTextBox = () => {
+    if (!selectedId) return
+    const newBlock = { id: crypto.randomUUID(), sectionId: selectedId, text: 'New text — click to edit.' }
+    applyLocalPatch({ customBlocks: [...(config.customBlocks || []), newBlock] })
+  }
+
+  const handleDeleteCustomBlock = () => {
+    if (!selectedId?.startsWith('customBlocks.')) return
+    const blockId = selectedId.slice('customBlocks.'.length)
+    applyLocalPatch({ customBlocks: (config.customBlocks || []).filter((b) => b.id !== blockId) })
+    setSelectedId(null)
+  }
+
+  const handleDeleteItem = () => {
+    if (!meta?.deletableArrayPath || meta.deletableIndex == null) return
+    const arr = getAtPath(config, meta.deletableArrayPath) || []
+    const next = arr.filter((_, i) => i !== meta.deletableIndex)
+    applyLocalPatch(setAtPath(config, meta.deletableArrayPath, next))
+    setSelectedId(null)
+  }
+
+  const handleImageFile = async (file) => {
+    if (!file || !meta?.contentPath) return
+    setUploading(true)
+    setUploadError('')
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      const res = await fetch('/api/admin/content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'upload-image', contentType: file.type, dataBase64: dataUrl }),
+      })
+      const data = await res.json().catch(() => ({ ok: false }))
+      if (!res.ok || !data.ok) {
+        setUploadError(data.error || 'Upload failed.')
+        return
+      }
+      commitText(data.url)
+    } catch {
+      setUploadError('Upload failed. Check your connection and try again.')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   return (
@@ -85,7 +141,7 @@ export default function EditorSidePanel() {
         <div className="space-y-5 mt-4">
           <p className="text-xs font-mono uppercase tracking-widest text-primary-dark">{meta.label}</p>
 
-          {meta.kind === 'text' && meta.contentPath && (
+          {(meta.kind === 'text' || meta.kind === 'custom-text') && meta.contentPath && (
             <>
               <label className="block">
                 <span className="block text-xs font-mono uppercase tracking-widest text-muted mb-1.5">Text</span>
@@ -120,6 +176,30 @@ export default function EditorSidePanel() {
             </>
           )}
 
+          {meta.kind === 'image' && meta.contentPath && (
+            <div className="space-y-3">
+              {getAtPath(config, meta.contentPath) && (
+                <img src={getAtPath(config, meta.contentPath)} alt="" className="w-full h-32 object-cover rounded-xl border border-divider" />
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={(e) => handleImageFile(e.target.files?.[0])}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full inline-flex items-center justify-center gap-2 border border-divider rounded-xl py-2.5 text-sm font-medium text-ink hover:border-primary/40 transition disabled:opacity-50"
+              >
+                <ImagePlus className="h-4 w-4" /> {uploading ? 'Uploading…' : 'Upload New Image'}
+              </button>
+              {uploadError && <p className="text-red-600 text-xs">{uploadError}</p>}
+            </div>
+          )}
+
           {meta.kind === 'section' && (
             <>
               <label className="block">
@@ -145,14 +225,43 @@ export default function EditorSidePanel() {
                   onChange={(e) => commitStyle('animationSpeed', Number(e.target.value))}
                 />
               </label>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={handleReplay}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-dark hover:text-primary transition"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" /> Replay animation
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={handleReplay}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-dark hover:text-primary transition"
+                onClick={handleAddTextBox}
+                className="w-full inline-flex items-center justify-center gap-2 border border-divider rounded-xl py-2.5 text-sm font-medium text-ink hover:border-primary/40 transition"
               >
-                <RefreshCw className="h-3.5 w-3.5" /> Replay animation
+                <Plus className="h-4 w-4" /> Add Text Box
               </button>
             </>
+          )}
+
+          {meta.kind === 'custom-text' && (
+            <button
+              type="button"
+              onClick={handleDeleteCustomBlock}
+              className="w-full inline-flex items-center justify-center gap-2 border border-red-200 text-red-600 rounded-xl py-2.5 text-sm font-medium hover:bg-red-50 transition"
+            >
+              <Trash2 className="h-4 w-4" /> Delete This Block
+            </button>
+          )}
+
+          {meta.deletableArrayPath && meta.deletableIndex != null && (
+            <button
+              type="button"
+              onClick={handleDeleteItem}
+              className="w-full inline-flex items-center justify-center gap-2 border border-red-200 text-red-600 rounded-xl py-2.5 text-sm font-medium hover:bg-red-50 transition"
+            >
+              <Trash2 className="h-4 w-4" /> Delete This Item
+            </button>
           )}
 
           <div className="flex items-center gap-3 pt-4 border-t border-divider">

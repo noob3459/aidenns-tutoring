@@ -53,10 +53,9 @@ export default function Footer() {
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-10">
           <div className="col-span-2">
             <div className="mb-4">
-              <img
-                src="/images/aidenns-tutoring-logo-premium.png"
-                alt="Aidenn's Tutoring"
-                className="h-14 sm:h-16 w-auto"
+              <Editable
+                id="footer.logoUrl" kind="image" as="img" contentPath="footer.logoUrl" label="Footer Logo"
+                src={footer.logoUrl} alt="Aidenn's Tutoring" className="h-14 sm:h-16 w-auto"
                 onClick={handleLogoClick}
               />
             </div>
@@ -94,7 +93,7 @@ export default function Footer() {
               ].map(({ to }, i) => (
                 <li key={to}>
                   <Link to={to} className="text-white/65 hover:text-accent transition text-sm">
-                    <Editable id={`footer.programLinks.${i}.label`} as="span" contentPath={`footer.programLinks.${i}.label`} label={`Footer Program Link ${i + 1}`}>
+                    <Editable id={`footer.programLinks.${i}.label`} as="span" contentPath={`footer.programLinks.${i}.label`} label={`Footer Program Link ${i + 1}`} deletableArrayPath="footer.programLinks" deletableIndex={i}>
                       {footer.programLinks[i].label}
                     </Editable>
                   </Link>

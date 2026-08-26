@@ -31,10 +31,9 @@ export default function Navbar() {
         <div className="flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2 group shrink-0">
             <span className="relative flex h-9 w-9 items-center justify-center rounded-full overflow-hidden shrink-0">
-              <img
-                src="/images/aidenns-tutoring-logo-mark.png"
-                alt="Aidenn's Tutoring logo"
-                className="h-full w-full object-cover"
+              <Editable
+                id="navbar.logoUrl" kind="image" as="img" contentPath="navbar.logoUrl" label="Navbar Logo"
+                src={config.navbar.logoUrl} alt="Aidenn's Tutoring logo" className="h-full w-full object-cover"
               />
               <span className="absolute inset-0 rounded-full ring-2 ring-accent/40 group-hover:ring-accent/60 transition pointer-events-none" />
             </span>
@@ -62,7 +61,7 @@ export default function Navbar() {
                   }`
                 }
               >
-                <Editable id={`navbar.navLinks.${i}.label`} as="span" contentPath={`navbar.navLinks.${i}.label`} label={`Nav Link ${i + 1} Label`}>
+                <Editable id={`navbar.navLinks.${i}.label`} as="span" contentPath={`navbar.navLinks.${i}.label`} label={`Nav Link ${i + 1} Label`} deletableArrayPath="navbar.navLinks" deletableIndex={i}>
                   {link.label}
                 </Editable>
               </NavLink>
@@ -103,10 +102,9 @@ export default function Navbar() {
           <div className="flex items-center justify-between mb-10">
             <span className="flex items-center gap-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden shrink-0">
-                <img
-                  src="/images/aidenns-tutoring-logo-mark.png"
-                  alt="Aidenn's Tutoring logo"
-                  className="h-full w-full object-cover"
+                <Editable
+                  id="navbar.logoUrl" kind="image" as="img" contentPath="navbar.logoUrl" label="Navbar Logo"
+                  src={config.navbar.logoUrl} alt="Aidenn's Tutoring logo" className="h-full w-full object-cover"
                 />
               </span>
               <Editable id="navbar.brandText" as="span" contentPath="navbar.brandText" label="Navbar Brand Text" className="font-display font-bold text-xl text-ink">
@@ -125,7 +123,7 @@ export default function Navbar() {
                 onClick={() => setOpen(false)}
                 className="font-display text-3xl font-semibold text-ink py-3 border-b border-divider"
               >
-                <Editable id={`navbar.navLinks.${i}.label`} as="span" contentPath={`navbar.navLinks.${i}.label`} label={`Nav Link ${i + 1} Label`}>
+                <Editable id={`navbar.navLinks.${i}.label`} as="span" contentPath={`navbar.navLinks.${i}.label`} label={`Nav Link ${i + 1} Label`} deletableArrayPath="navbar.navLinks" deletableIndex={i}>
                   {link.label}
                 </Editable>
               </NavLink>

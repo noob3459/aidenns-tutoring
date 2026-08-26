@@ -632,3 +632,21 @@ grant select, insert, delete on table public.admin_login_attempts to service_rol
 -- key, which lives exclusively in Vercel serverless function environment
 -- variables and is never sent to the client, can bypass RLS and touch
 -- this data — and even then, only within the explicit grants above.
+
+-- ---------------------------------------------------------------------
+-- site-images — Storage bucket for admin-uploaded Visual Editor images
+-- (hero background, protocol step photos, logo). Public-read so the
+-- uploaded URLs work directly in <img src> on the live site; uploads only
+-- ever happen server-side (api/admin/content.js, action: upload-image)
+-- via the service_role client, which bypasses storage.objects RLS the
+-- same way it bypasses RLS on every table above — there is no anon/public
+-- write path, only public read.
+-- ---------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('site-images', 'site-images', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Public read access for site-images" on storage.objects;
+create policy "Public read access for site-images"
+  on storage.objects for select
+  using (bucket_id = 'site-images');

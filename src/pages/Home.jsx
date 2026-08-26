@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { ArrowRight, ArrowUpRight, Phone } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import Editable from '../components/editor/Editable.jsx'
+import CustomBlocks from '../components/editor/CustomBlocks.jsx'
 import { runAnimationPreset } from '../lib/animationPresets.js'
 import GradeShuffler from '../components/GradeShuffler.jsx'
 import MathRain from '../components/MathRain.jsx'
@@ -37,8 +38,9 @@ function Hero() {
   return (
     <section ref={heroRef} data-editor-id="home.hero" data-editor-kind="section" data-editor-label="Hero Section (Animation)" className="relative min-h-[100dvh] w-full overflow-hidden">
       <div className="absolute inset-0">
-        <img
-          src="/images/hero-image-v2.png"
+        <Editable
+          id="home.hero.imageUrl" kind="image" as="img" contentPath="home.hero.imageUrl" label="Hero Background Image"
+          src={config.hero.imageUrl}
           alt="Handwritten K-9 math problems, fractions, algebra, and a coordinate graph on paper against a navy background"
           className="w-full h-full object-cover object-center"
         />
@@ -108,6 +110,8 @@ function Hero() {
               {config.hero.pillText}
             </Editable>
           </div>
+
+          <CustomBlocks sectionId="home.hero" className="space-y-2 mt-6 text-white/80" />
         </div>
 
         <div className="absolute bottom-8 right-6 sm:right-12 hidden md:flex flex-col items-center gap-2 text-white/50">
@@ -160,6 +164,7 @@ function Features() {
               {fs.heading2}
             </Editable>
           </h2>
+          <CustomBlocks sectionId="home.features.heading" />
         </div>
 
         <div data-editor-id="home.features.cards" data-editor-kind="section" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -172,20 +177,20 @@ function Features() {
                 className="feature-card group relative bg-surface border border-divider rounded-5xl p-7 hover:border-primary/40 transition-colors duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/10"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <Editable id={`home.featureCards.${idx}.eyebrow`} contentPath={`home.featureCards.${idx}.eyebrow`} label={`Feature Card ${idx + 1} Eyebrow`} as="span" className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+                  <Editable id={`home.featureCards.${idx}.eyebrow`} contentPath={`home.featureCards.${idx}.eyebrow`} label={`Feature Card ${idx + 1} Eyebrow`} as="span" className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted" deletableArrayPath="home.featureCards" deletableIndex={idx}>
                     {card.eyebrow}
                   </Editable>
                   <ArrowUpRight className="h-5 w-5 text-ink/30 group-hover:text-primary group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all" strokeWidth={1.8} />
                 </div>
                 {DemoComponent && <DemoComponent />}
                 <div className="mt-6">
-                  <Editable id={`home.featureCards.${idx}.heading`} contentPath={`home.featureCards.${idx}.heading`} label={`Feature Card ${idx + 1} Heading`} as="h3" className="font-display font-bold text-2xl text-ink leading-tight">
+                  <Editable id={`home.featureCards.${idx}.heading`} contentPath={`home.featureCards.${idx}.heading`} label={`Feature Card ${idx + 1} Heading`} as="h3" className="font-display font-bold text-2xl text-ink leading-tight" deletableArrayPath="home.featureCards" deletableIndex={idx}>
                     {card.heading}
                   </Editable>
-                  <Editable id={`home.featureCards.${idx}.sub`} contentPath={`home.featureCards.${idx}.sub`} label={`Feature Card ${idx + 1} Subheading`} as="p" className="font-serif italic text-primary-dark text-sm mt-1">
+                  <Editable id={`home.featureCards.${idx}.sub`} contentPath={`home.featureCards.${idx}.sub`} label={`Feature Card ${idx + 1} Subheading`} as="p" className="font-serif italic text-primary-dark text-sm mt-1" deletableArrayPath="home.featureCards" deletableIndex={idx}>
                     {card.sub}
                   </Editable>
-                  <Editable id={`home.featureCards.${idx}.text`} contentPath={`home.featureCards.${idx}.text`} label={`Feature Card ${idx + 1} Body Text`} as="p" className="text-muted text-[15px] mt-4 leading-relaxed">
+                  <Editable id={`home.featureCards.${idx}.text`} contentPath={`home.featureCards.${idx}.text`} label={`Feature Card ${idx + 1} Body Text`} as="p" className="text-muted text-[15px] mt-4 leading-relaxed" deletableArrayPath="home.featureCards" deletableIndex={idx}>
                     {card.text}
                   </Editable>
                 </div>
@@ -193,6 +198,7 @@ function Features() {
             )
           })}
         </div>
+        <CustomBlocks sectionId="home.features.cards" />
       </div>
     </section>
   )
@@ -267,6 +273,7 @@ function FinalCta() {
           <Editable id="home.finalCta.ctaLabel" as="span" contentPath="home.finalCta.ctaLabel" label="Final CTA Button">{cta.ctaLabel}</Editable>
           <ArrowRight className="h-4 w-4" />
         </Link>
+        <CustomBlocks sectionId="home.finalCta" />
       </div>
     </section>
   )
