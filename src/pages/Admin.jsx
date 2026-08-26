@@ -5,7 +5,7 @@ import {
   Phone as PhoneIcon, CalendarClock, FileText, AlertTriangle, ShieldAlert,
   Loader2, Trash2, Archive, RotateCcw, Copy, RefreshCw, Paintbrush, Undo2, Redo2,
 } from 'lucide-react'
-import { useSiteConfig, SiteConfigProvider } from '../context/SiteConfigContext.jsx'
+import { useSiteConfig, SiteConfigProvider, DEFAULT_CONFIG } from '../context/SiteConfigContext.jsx'
 import { EditorSelectionProvider } from '../context/EditorSelectionContext.jsx'
 import MonthCalendar from '../components/MonthCalendar.jsx'
 import EditorPreviewFrame, { PREVIEW_PAGES } from '../components/editor/EditorPreviewFrame.jsx'
@@ -633,11 +633,15 @@ function ContentTab({ config, updateConfig }) {
 
   const save = async () => {
     setError('')
+    const str = (v, fallback) => (typeof v === 'string' && v.trim() ? v : fallback)
     const result = await updateConfig({ hero, pages, footer, stats: {
       ...stats,
       sessions: Number(stats.sessions) || 0,
       freePercent: Number(stats.freePercent) || 0,
       replyHours: Number(stats.replyHours) || 0,
+      sessionsLabel: str(stats.sessionsLabel, DEFAULT_CONFIG.stats.sessionsLabel),
+      freePercentLabel: str(stats.freePercentLabel, DEFAULT_CONFIG.stats.freePercentLabel),
+      replyHoursLabel: str(stats.replyHoursLabel, DEFAULT_CONFIG.stats.replyHoursLabel),
     }, booking })
     if (result.ok) setSaved(true)
     else setError(result.error || 'Could not save. Please try again.')
