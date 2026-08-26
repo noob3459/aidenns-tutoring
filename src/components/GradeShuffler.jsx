@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 
 export default function GradeShuffler() {
   const items = [
-    { tag: 'K-2', label: 'Number Sense & Counting', meta: 'Early Math' },
-    { tag: '3-5', label: 'Fractions & Multiplication', meta: 'Elementary' },
-    { tag: '6-9', label: 'Algebra & Functions', meta: 'Middle School' },
+    { tag: 'Homework', label: 'Multi-Step Word Problems', meta: 'Tonight' },
+    { tag: 'Quiz Prep', label: 'Fractions & Ratios', meta: 'This Week' },
+    { tag: 'Concept', label: 'Negative Numbers, Explained', meta: 'Anytime' },
   ]
   const [stack, setStack] = useState(items)
 

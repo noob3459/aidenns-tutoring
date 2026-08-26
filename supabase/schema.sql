@@ -91,14 +91,14 @@ values (1, '{
     "hours": "Mon-Fri · 3:00-7:00 PM"
   },
   "hero": {
-    "eyebrow": "{grades} Math Tutoring · 100% Free",
-    "line1": "Premium Math Tutoring.",
-    "line2": "Always Free.",
-    "subtext": "One-on-one {grades} math tutoring from a certified educator, online or in person. No tuition, no hidden fees, ever."
+    "eyebrow": "{grades} Math Homework Help · 100% Free",
+    "line1": "Stuck on Math Homework?",
+    "line2": "Get Help. Free.",
+    "subtext": "One-on-one help with whatever your {grades} student is working on right now — no set curriculum, just clear explanations using my own practice problems and methods, online or in person."
   },
   "pages": {
-    "services": { "eyebrow": "╱ Everything We Offer", "heading1": "Every grade,", "heading2": "one tutor.", "sub": "{grades} math, covered start to finish, online or in person, always at no cost." },
-    "approach": { "eyebrow": "╱ How It Works", "heading1": "Three steps.", "heading2": "No surprises.", "sub": "From a two-minute intake to a confirmed weekly session, every step is free." },
+    "services": { "eyebrow": "╱ How I Can Help", "heading1": "Whatever they’re", "heading2": "stuck on.", "sub": "No curriculum, no set lesson plan — just focused help on the {grades} math your student is working on right now." },
+    "approach": { "eyebrow": "╱ How It Works", "heading1": "Three steps.", "heading2": "No surprises.", "sub": "Tell me what they’re stuck on, and I’ll walk through it with my own practice problems until it clicks." },
     "contact": { "eyebrow": "╱ Get In Touch", "heading1": "Let’s talk", "heading2": "math.", "sub": "Questions before you book? Reach out any time. We usually reply within a day." },
     "booking": { "eyebrow": "╱ Book a Free Session", "heading1": "Takes about", "heading2": "a minute.", "sub": "Pick your student’s grade, choose online or in person, and grab an open time slot. No card, no account, no cost." },
     "about": { "eyebrow": "╱ Meet Your Tutor", "heading1": "Hi, I’m", "heading2": "Aidenn.", "sub": "The founder and lead tutor behind Aidenn’s Tutoring." }
@@ -107,20 +107,20 @@ values (1, '{
     "name": "Aidenn",
     "role": "Founder & Lead Tutor",
     "bioParagraphs": [
-      { "text": "I started Aidenn’s Tutoring because I believe every {grades} student deserves one-on-one math help, regardless of what their family can afford." },
-      { "text": "Every session is built around your student’s exact grade and skill level, whether that’s early number sense or the first steps into algebra." },
+      { "text": "I started Aidenn’s Tutoring because I believe every {grades} student deserves help the moment they get stuck on math homework, regardless of what their family can afford." },
+      { "text": "There’s no fixed curriculum here. Every session is built around whatever your student is actually working on right now, a homework set, one confusing topic, an upcoming test, using my own practice problems and explanations." },
       { "text": "Outside of tutoring, I’m focused on keeping this program free forever, funded by donations instead of tuition." }
     ],
     "credentials": [
       { "title": "Trusted by Many", "text": "Relied on by families across the community for safe, one-on-one tutoring." },
-      { "title": "{grades} Math Specialist", "text": "Focused exclusively on {grades} math, from counting to Algebra I." },
+      { "title": "Homework Help Specialist", "text": "Focused on helping {grades} students work through whatever math they’re currently stuck on, no set curriculum." },
       { "title": "Local & Online", "text": "In-person sessions in Rancho Cucamonga and Fontana, CA, plus online nationwide." }
     ]
   },
   "footer": {
     "tagline1": "Math help you can",
     "tagline2": "count on.",
-    "blurb": "Aidenn’s Tutoring: free {grades} math tutoring, online and in person, funded by generous donors."
+    "blurb": "Aidenn’s Tutoring: free homework help for {grades} math, whatever they’re stuck on, funded by generous donors."
   },
   "stats": { "sessions": 500, "freePercent": 100, "replyHours": 24 }
 }'::jsonb)

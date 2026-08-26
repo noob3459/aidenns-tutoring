@@ -15,10 +15,10 @@ export const DEFAULT_CONFIG = {
     zoomLink: '',
   },
   hero: {
-    eyebrow: '{grades} Math Tutoring · 100% Free',
-    line1: 'Premium Math Tutoring.',
-    line2: 'Always Free.',
-    subtext: 'One-on-one {grades} math tutoring from a certified educator, online or in person. No tuition, no hidden fees, ever.',
+    eyebrow: '{grades} Math Homework Help · 100% Free',
+    line1: 'Stuck on Math Homework?',
+    line2: 'Get Help. Free.',
+    subtext: 'One-on-one help with whatever your {grades} student is working on right now — no set curriculum, just clear explanations using my own practice problems and methods, online or in person.',
     imageUrl: '/images/hero-image-v2.png',
     pillPrefix: '$0',
     pillText: 'per session, every session, forever.',
@@ -26,10 +26,10 @@ export const DEFAULT_CONFIG = {
   },
   pages: {
     services: {
-      eyebrow: '╱ Everything We Offer',
-      heading1: 'Every grade,',
-      heading2: 'one tutor.',
-      sub: '{grades} math, covered start to finish, online or in person, always at no cost.',
+      eyebrow: '╱ How I Can Help',
+      heading1: 'Whatever they’re',
+      heading2: 'stuck on.',
+      sub: 'No curriculum, no set lesson plan — just focused help on the {grades} math your student is working on right now.',
       ctaLabel: 'Book a Free Session',
       prompt: '',
     },
@@ -37,7 +37,7 @@ export const DEFAULT_CONFIG = {
       eyebrow: '╱ How It Works',
       heading1: 'Three steps.',
       heading2: 'No surprises.',
-      sub: 'From a two-minute intake to a confirmed weekly session, every step is free.',
+      sub: 'Tell me what they’re stuck on, and I’ll walk through it with my own practice problems until it clicks.',
       ctaLabel: 'Book a Free Session',
       prompt: '',
     },
@@ -69,11 +69,11 @@ export const DEFAULT_CONFIG = {
   footer: {
     tagline1: 'Math help you can',
     tagline2: 'count on.',
-    blurb: 'Aidenn’s Tutoring: free {grades} math tutoring, online and in person, funded by generous donors.',
+    blurb: 'Aidenn’s Tutoring: free homework help for {grades} math, whatever they’re stuck on, funded by generous donors.',
     communityLine: 'Community-Funded · Est. 2024',
     statusPillText: 'Booking Open · Accepting Students',
     ctaLabel: 'Book a Free Session',
-    aboutBlurb: 'Certified {grades} math tutoring for every family, no tuition, no hidden fees, ever.',
+    aboutBlurb: 'Free, one-on-one help with {grades} math homework — no curriculum, just clear explanations when something isn’t clicking.',
     servicesHeading: 'Services',
     programHeading: 'Program',
     contactHeading: 'Contact',
@@ -119,9 +119,9 @@ export const DEFAULT_CONFIG = {
     featureCards: [
       {
         eyebrow: '01 / Personalized',
-        heading: 'Built Around Your Child’s Grade',
-        sub: '{grades}, matched exactly',
-        text: 'Every plan starts with your student’s exact grade and skill level, from early number sense to Algebra I. No generic worksheets, ever.',
+        heading: 'Help With What They’re Actually Stuck On',
+        sub: '{grades}, no curriculum required',
+        text: 'No fixed lesson plan. Bring the homework, the topic, or the test that’s giving them trouble, and we work through it using my own practice problems and methods.',
       },
       {
         eyebrow: '02 / Live Sessions',
@@ -154,14 +154,14 @@ export const DEFAULT_CONFIG = {
     stepFooterSuffix: 'Aidenn’s Tutoring',
     protocolSteps: [
       {
-        title: 'Share Your Goals', tagline: 'Two minutes, that’s it.',
-        text: 'Tell us your student’s grade and where they’re stuck: fractions, word problems, algebra, anything. No cost, no obligation, no catch.',
+        title: 'Tell Me What’s Stuck', tagline: 'Two minutes, that’s it.',
+        text: 'Tell me your student’s grade and exactly what they’re stuck on: a homework set, one confusing topic, a test coming up. No cost, no obligation, no catch.',
         meta: 'Step 1 / Listen',
         imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
       },
       {
-        title: 'We Build a Plan', tagline: 'Made for your student.',
-        text: 'A certified educator reviews the goals and designs a session plan targeting the exact skill gaps, matched to what’s being taught in class.',
+        title: 'I Pull Together the Right Help', tagline: 'Made for that exact problem.',
+        text: 'No fixed curriculum to work through. I put together practice problems and explanations aimed at the specific thing that isn’t clicking yet.',
         meta: 'Step 2 / Plan',
         imageUrl: 'https://images.unsplash.com/photo-1509869175650-a1d97972541a?auto=format&fit=crop&w=1200&q=80',
       },
@@ -174,8 +174,8 @@ export const DEFAULT_CONFIG = {
     ],
     trustBadges: [
       { title: 'Loved by Parents', text: '“My son actually looks forward to math night now.” (a parent, Grade 4)' },
-      { title: 'Real Score Improvement', text: 'Students average a full letter-grade jump within one semester of weekly sessions.' },
-      { title: 'Certified & Background-Checked', text: 'Every session is led by a certified {grades} educator trained in child-safe tutoring practices.' },
+      { title: 'Real Confidence Gains', text: 'Families consistently report better grades and less homework stress within weeks of starting.' },
+      { title: 'Background-Checked & Trusted', text: 'Every session is led by a background-checked tutor experienced helping {grades} students work through whatever math they’re stuck on.' },
     ],
     trustSignalsHeading: {
       eyebrow: '╱ Why Families Trust Us',
@@ -185,10 +185,10 @@ export const DEFAULT_CONFIG = {
   services: {
     badgeText: 'Free',
     items: [
-      { title: 'Early Math Foundations', text: 'K-2 counting, number sense, and early arithmetic built through hands-on play.' },
-      { title: 'Elementary Math', text: 'Grades 3-5: fractions, multiplication, division, and multi-step word problems.' },
-      { title: 'Pre-Algebra & Algebra I', text: 'Grades 6-9: variables, equations, functions, and the foundations of algebraic thinking.' },
-      { title: 'Homework & Test Prep', text: 'Focused help on current classwork, quizzes, and standardized test prep.' },
+      { title: 'Concept Breakdown', text: 'Stuck on one topic, like fractions or word problems? We rebuild it from scratch with practice problems made for exactly where they’re stuck.' },
+      { title: 'Homework Help', text: 'Bring whatever’s due tonight, a worksheet, a problem set, a review packet, and we work through it together, step by step.' },
+      { title: 'Test & Quiz Prep', text: 'Review exactly what’s on the upcoming test, with practice problems modeled on your student’s actual class.' },
+      { title: 'Ongoing Support', text: 'Weekly sessions that follow whatever your student is covering in class right now. No fixed curriculum, just consistent help.' },
       { title: 'Online Sessions', text: 'Live 1:1 video sessions from anywhere, with a shared digital whiteboard.' },
       { title: 'In-Person Sessions', text: 'Face-to-face tutoring at a local library or community space near you.' },
     ],
@@ -197,7 +197,7 @@ export const DEFAULT_CONFIG = {
     minGrade: 'K',
     maxGrade: '9',
     steps: [
-      { heading: 'What grade is your student in?', sub: 'We tutor {gradesLong} math. Free, always.' },
+      { heading: 'What grade is your student in?', sub: 'I help {gradesLong} students with their math homework. Free, always.' },
       { heading: 'Online or in person?', sub: 'Both formats are completely free.' },
       { heading: 'Pick a day and time', sub: 'All times Pacific (America/Los Angeles).' },
       { heading: 'A few last details', sub: 'So we know who to expect, and where to send the confirmation.' },
@@ -249,20 +249,20 @@ export const DEFAULT_CONFIG = {
     name: 'Aidenn',
     role: 'Founder & Lead Tutor',
     bioParagraphs: [
-      { text: 'I started Aidenn’s Tutoring because I believe every {grades} student deserves one-on-one math help, regardless of what their family can afford.' },
-      { text: 'Every session is built around your student’s exact grade and skill level, whether that’s early number sense or the first steps into algebra.' },
+      { text: 'I started Aidenn’s Tutoring because I believe every {grades} student deserves help the moment they get stuck on math homework, regardless of what their family can afford.' },
+      { text: 'There’s no fixed curriculum here. Every session is built around whatever your student is actually working on right now, a homework set, one confusing topic, an upcoming test, using my own practice problems and explanations.' },
       { text: 'Outside of tutoring, I’m focused on keeping this program free forever, funded by donations instead of tuition.' },
     ],
     credentials: [
       { title: 'Trusted by Many', text: 'Relied on by families across the community for safe, one-on-one tutoring.' },
-      { title: '{grades} Math Specialist', text: 'Focused exclusively on {grades} math, from counting to Algebra I.' },
+      { title: 'Homework Help Specialist', text: 'Focused on helping {grades} students work through whatever math they’re currently stuck on, no set curriculum.' },
       { title: 'Local & Online', text: 'In-person sessions in Rancho Cucamonga and Fontana, CA, plus online nationwide.' },
     ],
   },
   legal: {
     privacyHeading: 'Privacy Policy',
     privacyParagraphs: [
-      { text: 'Aidenn’s Tutoring is a free {grades} math tutoring service. We collect only what’s needed to schedule and run sessions: a parent or guardian’s name, email, phone number, and the student’s grade level.' },
+      { text: 'Aidenn’s Tutoring is a free {grades} math homework help service. We collect only what’s needed to schedule and run sessions: a parent or guardian’s name, email, phone number, and the student’s grade level.' },
       { text: 'Booking details are used solely to confirm sessions and send reminders. We never sell or share family information with third parties, and student information is never used for marketing.' },
       { text: 'You may request deletion of your family’s information at any time by contacting us using the details on the Contact page.' },
       { text: 'This policy may be updated periodically to reflect how the program operates. Continued use of the booking system after changes means you accept the current policy.' },
