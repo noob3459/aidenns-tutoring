@@ -83,6 +83,7 @@ export default function Footer() {
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent mb-4">Program</p>
             <ul className="space-y-2.5">
               <li><Link to="/approach" className="text-white/65 hover:text-accent transition text-sm">Approach</Link></li>
+              <li><Link to="/about" className="text-white/65 hover:text-accent transition text-sm">About</Link></li>
               <li><Link to="/booking" className="text-white/65 hover:text-accent transition text-sm">Book a Session</Link></li>
               <li><Link to="/contact" className="text-white/65 hover:text-accent transition text-sm">Contact</Link></li>
               <li><a href={`mailto:${contact.donateEmail}?subject=I%27d%20like%20to%20donate`} className="text-white/65 hover:text-accent transition text-sm">Donate</a></li>

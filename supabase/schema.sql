@@ -87,7 +87,7 @@ values (1, '{
     "phoneTel": "+19497957036",
     "email": "aidenn@aidennstutoring.org",
     "donateEmail": "donate@aidennstutoring.org",
-    "serving": "Online nationwide & in-person locally",
+    "serving": "Online nationwide & in-person in Rancho Cucamonga and Fontana, CA",
     "hours": "Mon-Fri · 3:00-7:00 PM"
   },
   "hero": {
@@ -100,7 +100,22 @@ values (1, '{
     "services": { "eyebrow": "╱ Everything We Offer", "heading1": "Every grade,", "heading2": "one tutor.", "sub": "K-9 math, covered start to finish, online or in person, always at no cost." },
     "approach": { "eyebrow": "╱ How It Works", "heading1": "Three steps.", "heading2": "No surprises.", "sub": "From a two-minute intake to a confirmed weekly session, every step is free." },
     "contact": { "eyebrow": "╱ Get In Touch", "heading1": "Let’s talk", "heading2": "math.", "sub": "Questions before you book? Reach out any time. We usually reply within a day." },
-    "booking": { "eyebrow": "╱ Book a Free Session", "heading1": "Takes about", "heading2": "a minute.", "sub": "Pick your student’s grade, choose online or in person, and grab an open time slot. No card, no account, no cost." }
+    "booking": { "eyebrow": "╱ Book a Free Session", "heading1": "Takes about", "heading2": "a minute.", "sub": "Pick your student’s grade, choose online or in person, and grab an open time slot. No card, no account, no cost." },
+    "about": { "eyebrow": "╱ Meet Your Tutor", "heading1": "Hi, I’m", "heading2": "Aidenn.", "sub": "The founder and lead tutor behind Aidenn’s Tutoring." }
+  },
+  "about": {
+    "name": "Aidenn",
+    "role": "Founder & Lead Tutor",
+    "bioParagraphs": [
+      { "text": "I started Aidenn’s Tutoring because I believe every K-9 student deserves one-on-one math help, regardless of what their family can afford." },
+      { "text": "Every session is built around your student’s exact grade and skill level, whether that’s early number sense or the first steps into algebra." },
+      { "text": "Outside of tutoring, I’m focused on keeping this program free forever, funded by donations instead of tuition." }
+    ],
+    "credentials": [
+      { "title": "Certified Educator", "text": "Trained and background-checked for child-safe, one-on-one tutoring." },
+      { "title": "K-9 Math Specialist", "text": "Focused exclusively on K-9 math, from counting to Algebra I." },
+      { "title": "Local & Online", "text": "In-person sessions in Rancho Cucamonga and Fontana, CA, plus online nationwide." }
+    ]
   },
   "footer": {
     "tagline1": "Math help you can",

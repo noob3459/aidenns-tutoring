@@ -5,7 +5,7 @@
 const STRING_FIELD_MAX = 400
 const ARRAY_FIELD_MAX = 12
 
-const PAGE_KEYS = ['services', 'approach', 'contact', 'booking']
+const PAGE_KEYS = ['services', 'approach', 'contact', 'booking', 'about']
 const PAGE_SCHEMA = { eyebrow: 'string', heading1: 'string', heading2: 'string', sub: 'string', ctaLabel: 'string', prompt: 'string' }
 
 const SCHEMA = {
@@ -27,6 +27,8 @@ const ARRAY_SCHEMAS = {
   'services.items': { title: 'string', text: 'string' },
   'navbar.navLinks': { label: 'string' },
   'booking.steps': { heading: 'string', sub: 'string' },
+  'about.bioParagraphs': { text: 'string' },
+  'about.credentials': { title: 'string', text: 'string' },
 }
 
 const SIMPLE_SECTION_SCHEMAS = {
@@ -191,7 +193,7 @@ export function validateSettings(body, rawBodyLength) {
 
   const allowedTopLevel = [
     'contact', 'hero', 'pages', 'footer', 'stats',
-    'navbar', 'donateBanner', 'home', 'approach', 'services', 'booking',
+    'navbar', 'donateBanner', 'home', 'approach', 'services', 'booking', 'about',
     'elementStyles',
   ]
   const unknownTop = Object.keys(body).filter((k) => !allowedTopLevel.includes(k))
@@ -254,6 +256,16 @@ export function validateSettings(body, rawBodyLength) {
     clean.booking = validateSection(body.booking, {
       arrays: { steps: ARRAY_SCHEMAS['booking.steps'] },
     }, 'booking', errors)
+  }
+
+  if (body.about !== undefined) {
+    clean.about = validateSection(body.about, {
+      simple: { name: 'string', role: 'string' },
+      arrays: {
+        bioParagraphs: ARRAY_SCHEMAS['about.bioParagraphs'],
+        credentials: ARRAY_SCHEMAS['about.credentials'],
+      },
+    }, 'about', errors)
   }
 
   if (body.elementStyles !== undefined) {

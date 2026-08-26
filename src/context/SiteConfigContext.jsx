@@ -6,7 +6,7 @@ export const DEFAULT_CONFIG = {
     phoneTel: '+19497957036',
     email: 'aidenn@aidennstutoring.org',
     donateEmail: 'donate@aidennstutoring.org',
-    serving: 'Online nationwide & in-person locally',
+    serving: 'Online nationwide & in-person in Rancho Cucamonga and Fontana, CA',
     hours: 'Mon-Fri · 3:00-7:00 PM',
   },
   hero: {
@@ -48,6 +48,14 @@ export const DEFAULT_CONFIG = {
       ctaLabel: 'Book a Free Session',
       prompt: '',
     },
+    about: {
+      eyebrow: '╱ Meet Your Tutor',
+      heading1: 'Hi, I’m',
+      heading2: 'Aidenn.',
+      sub: 'The founder and lead tutor behind Aidenn’s Tutoring.',
+      ctaLabel: 'Book a Free Session',
+      prompt: '',
+    },
   },
   footer: {
     tagline1: 'Math help you can',
@@ -70,6 +78,7 @@ export const DEFAULT_CONFIG = {
       { label: 'Home' },
       { label: 'Services' },
       { label: 'Approach' },
+      { label: 'About' },
       { label: 'Contact' },
     ],
   },
@@ -143,6 +152,20 @@ export const DEFAULT_CONFIG = {
       { heading: 'Online or in person?', sub: 'Both formats are completely free.' },
       { heading: 'Pick a day and time', sub: 'All times Pacific (America/Los Angeles).' },
       { heading: 'A few last details', sub: 'So we know who to expect, and where to send the confirmation.' },
+    ],
+  },
+  about: {
+    name: 'Aidenn',
+    role: 'Founder & Lead Tutor',
+    bioParagraphs: [
+      { text: 'I started Aidenn’s Tutoring because I believe every K-9 student deserves one-on-one math help, regardless of what their family can afford.' },
+      { text: 'Every session is built around your student’s exact grade and skill level, whether that’s early number sense or the first steps into algebra.' },
+      { text: 'Outside of tutoring, I’m focused on keeping this program free forever, funded by donations instead of tuition.' },
+    ],
+    credentials: [
+      { title: 'Certified Educator', text: 'Trained and background-checked for child-safe, one-on-one tutoring.' },
+      { title: 'K-9 Math Specialist', text: 'Focused exclusively on K-9 math, from counting to Algebra I.' },
+      { title: 'Local & Online', text: 'In-person sessions in Rancho Cucamonga and Fontana, CA, plus online nationwide.' },
     ],
   },
   elementStyles: {},

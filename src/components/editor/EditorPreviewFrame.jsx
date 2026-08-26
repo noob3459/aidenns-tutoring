@@ -6,6 +6,7 @@ import Footer from '../Footer.jsx'
 import Home from '../../pages/Home.jsx'
 import Services from '../../pages/Services.jsx'
 import Approach from '../../pages/Approach.jsx'
+import AboutMe from '../../pages/AboutMe.jsx'
 import Contact from '../../pages/Contact.jsx'
 import Booking from '../../pages/Booking.jsx'
 
@@ -13,6 +14,7 @@ export const PREVIEW_PAGES = [
   { key: 'home', label: 'Home', Component: Home },
   { key: 'services', label: 'Services', Component: Services },
   { key: 'approach', label: 'Approach', Component: Approach },
+  { key: 'about', label: 'About', Component: AboutMe },
   { key: 'contact', label: 'Contact', Component: Contact },
   { key: 'booking', label: 'Booking', Component: Booking },
 ]
