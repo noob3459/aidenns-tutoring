@@ -3,6 +3,7 @@ import { Phone, Mail, MapPin, Clock, ArrowRight } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 import DonateBanner from '../components/DonateBanner.jsx'
+import Editable from '../components/editor/Editable.jsx'
 
 export default function Contact() {
   const { config } = useSiteConfig()
@@ -18,7 +19,7 @@ export default function Contact() {
 
   return (
     <>
-      <PageHeader eyebrow={p.eyebrow} heading1={p.heading1} heading2={p.heading2} sub={p.sub} />
+      <PageHeader eyebrow={p.eyebrow} heading1={p.heading1} heading2={p.heading2} sub={p.sub} idPrefix="pages.contact" />
 
       <section className="relative px-6 sm:px-10 lg:px-16 pb-16">
         <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -41,9 +42,13 @@ export default function Contact() {
         </div>
 
         <div className="max-w-5xl mx-auto text-center mt-14">
-          <p className="text-muted mb-4">Ready to get started instead?</p>
+          <Editable id="pages.contact.prompt" as="p" contentPath="pages.contact.prompt" label="Contact Page Prompt Text" className="text-muted mb-4">
+            {p.prompt}
+          </Editable>
           <Link to="/booking" className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-7 py-3.5 rounded-full shadow-xl shadow-primary/30">
-            Book a Free Session
+            <Editable id="pages.contact.ctaLabel" as="span" contentPath="pages.contact.ctaLabel" label="Contact Page CTA Button">
+              {p.ctaLabel}
+            </Editable>
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>

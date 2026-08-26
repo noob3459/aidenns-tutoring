@@ -4,11 +4,15 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { ArrowRight, ArrowUpRight, Phone } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
+import Editable from '../components/editor/Editable.jsx'
+import { runAnimationPreset } from '../lib/animationPresets.js'
 import GradeShuffler from '../components/GradeShuffler.jsx'
 import MathRain from '../components/MathRain.jsx'
 import SchedulerDemo from '../components/SchedulerDemo.jsx'
 import CountUp from '../components/CountUp.jsx'
 import DonateBanner from '../components/DonateBanner.jsx'
+
+const FEATURE_DEMO_COMPONENTS = [GradeShuffler, MathRain, SchedulerDemo]
 
 /* ---------------- Hero ---------------- */
 function Hero() {
@@ -16,18 +20,22 @@ function Hero() {
   const heroRef = useRef(null)
 
   useEffect(() => {
+    const style = config.elementStyles?.['home.hero'] || {}
     const ctx = gsap.context(() => {
-      gsap.from('.hero-line-1', { y: 40, opacity: 0, duration: 1, ease: 'power3.out', delay: 0.3 })
-      gsap.from('.hero-line-2', { y: 60, opacity: 0, duration: 1.2, ease: 'power3.out', delay: 0.5 })
-      gsap.from('.hero-cta, .hero-meta', { y: 24, opacity: 0, duration: 0.8, ease: 'power3.out', delay: 0.8, stagger: 0.12 })
+      // Three grouped entrance moments, same as before this feature
+      // existed, just parameterized by the section's configured preset/speed.
+      runAnimationPreset(style.animation || 'slide-up', '.hero-line-1', { speed: style.animationSpeed, delay: 0.3 })
+      runAnimationPreset(style.animation || 'slide-up', '.hero-line-2', { speed: style.animationSpeed, delay: 0.5, distance: 60 })
+      runAnimationPreset('stagger', '.hero-cta, .hero-meta', { speed: style.animationSpeed, delay: 0.8, stagger: 0.12, distance: 24 })
     }, heroRef)
     return () => ctx.revert()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const particles = ['+', '√', 'π', '÷', '=']
 
   return (
-    <section ref={heroRef} className="relative min-h-[100dvh] w-full overflow-hidden">
+    <section ref={heroRef} data-editor-id="home.hero" data-editor-kind="section" data-editor-label="Hero Section (Animation)" className="relative min-h-[100dvh] w-full overflow-hidden">
       <div className="absolute inset-0">
         <img
           src="/images/hero-image-v2.png"
@@ -54,27 +62,33 @@ function Hero() {
 
       <div className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center text-center">
         <div className="px-6 sm:px-10 lg:px-16 max-w-4xl">
-          <p className="hero-meta inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.28em] text-accent mb-6 border border-accent/40 bg-accent/10 rounded-full px-4 py-1.5">
+          <Editable id="home.hero.eyebrow" as="p" contentPath="hero.eyebrow" label="Hero Eyebrow Badge" className="hero-meta inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.28em] text-accent mb-6 border border-accent/40 bg-accent/10 rounded-full px-4 py-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse-slow" />
             {config.hero.eyebrow}
-          </p>
+          </Editable>
           <h1 className="font-display font-extrabold text-white leading-[0.95] tracking-tight">
-            <span className="hero-line-1 block text-4xl sm:text-5xl md:text-6xl">{config.hero.line1}</span>
-            <span className="hero-line-2 block font-serif italic font-medium text-accent text-6xl sm:text-7xl md:text-8xl lg:text-9xl mt-2" style={{ lineHeight: '0.92' }}>
+            <Editable id="home.hero.line1" as="span" contentPath="hero.line1" label="Hero Headline (Line 1)" className="hero-line-1 block text-4xl sm:text-5xl md:text-6xl">
+              {config.hero.line1}
+            </Editable>
+            <Editable
+              id="home.hero.line2" as="span" contentPath="hero.line2" label="Hero Headline (Line 2)"
+              className="hero-line-2 block font-serif italic font-medium text-accent text-6xl sm:text-7xl md:text-8xl lg:text-9xl mt-2"
+              style={{ lineHeight: '0.92' }}
+            >
               {config.hero.line2}
-            </span>
+            </Editable>
           </h1>
 
-          <p className="hero-meta mx-auto max-w-xl text-white/75 text-base sm:text-lg mt-8 leading-relaxed">
+          <Editable id="home.hero.subtext" as="p" contentPath="hero.subtext" label="Hero Subtext" className="hero-meta mx-auto max-w-xl text-white/75 text-base sm:text-lg mt-8 leading-relaxed">
             {config.hero.subtext}
-          </p>
+          </Editable>
 
           <div className="hero-cta mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/booking"
               className="magnetic-btn group inline-flex items-center justify-center gap-2 bg-primary text-white font-semibold px-7 py-4 rounded-full shadow-2xl shadow-primary/40"
             >
-              Book a Free Session
+              <Editable id="home.hero.ctaLabel" as="span" contentPath="home.heroCtaLabel" label="Hero CTA Button">{config.home.heroCtaLabel}</Editable>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <a
@@ -104,49 +118,30 @@ function Hero() {
 /* ---------------- Features ---------------- */
 function Features() {
   const sectionRef = useRef(null)
+  const { config } = useSiteConfig()
+  const cards = config.home.featureCards
 
   useEffect(() => {
+    const style = config.elementStyles?.['home.features.cards'] || {}
+    const headingStyle = config.elementStyles?.['home.features.heading'] || {}
     const ctx = gsap.context(() => {
-      gsap.from('.feature-card', {
+      runAnimationPreset(style.animation || 'stagger', '.feature-card', {
+        speed: style.animationSpeed, stagger: 0.15, distance: 40,
         scrollTrigger: { trigger: sectionRef.current, start: 'top 90%', once: true },
-        y: 40, opacity: 0, duration: 0.8, ease: 'power3.out', stagger: 0.15,
       })
-      gsap.from('.feature-heading > *', {
+      runAnimationPreset(headingStyle.animation || 'stagger', '.feature-heading > *', {
+        speed: headingStyle.animationSpeed, stagger: 0.08, distance: 30,
         scrollTrigger: { trigger: sectionRef.current, start: 'top 95%', once: true },
-        y: 30, opacity: 0, duration: 0.8, ease: 'power3.out', stagger: 0.08,
       })
     }, sectionRef)
     return () => ctx.revert()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const cards = [
-    {
-      eyebrow: '01 / Personalized',
-      heading: 'Built Around Your Child’s Grade',
-      sub: 'K-9, matched exactly',
-      text: 'Every plan starts with your student’s exact grade and skill level, from early number sense to Algebra I. No generic worksheets, ever.',
-      Component: GradeShuffler,
-    },
-    {
-      eyebrow: '02 / Live Sessions',
-      heading: 'Concepts Click in Real Time',
-      sub: 'Shared whiteboard, zero pressure',
-      text: 'Watch understanding build live with a shared digital whiteboard and a tutor who adjusts the moment something doesn’t click.',
-      Component: MathRain,
-    },
-    {
-      eyebrow: '03 / Booking',
-      heading: 'Scheduling In Under a Minute',
-      sub: 'Pick a time, you’re set',
-      text: 'Choose a grade, a format, and an open time slot. A confirmed session lands in your inbox in minutes. Completely free.',
-      Component: SchedulerDemo,
-    },
-  ]
 
   return (
     <section ref={sectionRef} className="relative py-28 sm:py-40 px-6 sm:px-10 lg:px-16">
       <div className="max-w-7xl mx-auto">
-        <div className="feature-heading max-w-3xl mb-16 sm:mb-24">
+        <div data-editor-id="home.features.heading" data-editor-kind="section" data-editor-label="Features Heading (Animation)" className="feature-heading max-w-3xl mb-16 sm:mb-24">
           <span className="font-mono text-xs uppercase tracking-[0.25em] text-primary-dark">╱ The Aidenn’s Tutoring Difference</span>
           <h2 className="font-display font-extrabold text-4xl sm:text-5xl md:text-6xl text-ink mt-4 leading-[1.05] tracking-tight">
             Tutoring that
@@ -154,24 +149,36 @@ function Features() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {cards.map((card, idx) => (
-            <article
-              key={idx}
-              className="feature-card group relative bg-surface border border-divider rounded-5xl p-7 hover:border-primary/40 transition-colors duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/10"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">{card.eyebrow}</span>
-                <ArrowUpRight className="h-5 w-5 text-ink/30 group-hover:text-primary group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all" strokeWidth={1.8} />
-              </div>
-              <card.Component />
-              <div className="mt-6">
-                <h3 className="font-display font-bold text-2xl text-ink leading-tight">{card.heading}</h3>
-                <p className="font-serif italic text-primary-dark text-sm mt-1">{card.sub}</p>
-                <p className="text-muted text-[15px] mt-4 leading-relaxed">{card.text}</p>
-              </div>
-            </article>
-          ))}
+        <div data-editor-id="home.features.cards" data-editor-kind="section" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {cards.map((card, idx) => {
+            const DemoComponent = FEATURE_DEMO_COMPONENTS[idx]
+            return (
+              <article
+                key={idx}
+                data-editor-id="home.features.cards"
+                className="feature-card group relative bg-surface border border-divider rounded-5xl p-7 hover:border-primary/40 transition-colors duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/10"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <Editable id={`home.featureCards.${idx}.eyebrow`} contentPath={`home.featureCards.${idx}.eyebrow`} label={`Feature Card ${idx + 1} Eyebrow`} as="span" className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+                    {card.eyebrow}
+                  </Editable>
+                  <ArrowUpRight className="h-5 w-5 text-ink/30 group-hover:text-primary group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all" strokeWidth={1.8} />
+                </div>
+                {DemoComponent && <DemoComponent />}
+                <div className="mt-6">
+                  <Editable id={`home.featureCards.${idx}.heading`} contentPath={`home.featureCards.${idx}.heading`} label={`Feature Card ${idx + 1} Heading`} as="h3" className="font-display font-bold text-2xl text-ink leading-tight">
+                    {card.heading}
+                  </Editable>
+                  <Editable id={`home.featureCards.${idx}.sub`} contentPath={`home.featureCards.${idx}.sub`} label={`Feature Card ${idx + 1} Subheading`} as="p" className="font-serif italic text-primary-dark text-sm mt-1">
+                    {card.sub}
+                  </Editable>
+                  <Editable id={`home.featureCards.${idx}.text`} contentPath={`home.featureCards.${idx}.text`} label={`Feature Card ${idx + 1} Body Text`} as="p" className="text-muted text-[15px] mt-4 leading-relaxed">
+                    {card.text}
+                  </Editable>
+                </div>
+              </article>
+            )
+          })}
         </div>
       </div>
     </section>
@@ -227,18 +234,22 @@ function StatsStrip() {
 
 /* ---------------- Final CTA ---------------- */
 function FinalCta() {
+  const { config } = useSiteConfig()
+  const cta = config.home.finalCta
   return (
-    <section className="relative py-20 sm:py-28 px-6 sm:px-10 lg:px-16">
+    <section data-editor-id="home.finalCta" data-editor-kind="section" data-editor-label="Final CTA Section (Animation)" className="relative py-20 sm:py-28 px-6 sm:px-10 lg:px-16">
       <div className="max-w-4xl mx-auto text-center">
         <h2 className="font-display font-extrabold text-3xl sm:text-5xl text-ink tracking-tight">
-          Ready when you are.
-          <span className="block font-serif italic font-medium text-primary-dark mt-1">Still free.</span>
+          <Editable id="home.finalCta.heading1" as="span" contentPath="home.finalCta.heading1" label="Final CTA Headline (Line 1)">{cta.heading1}</Editable>
+          <Editable id="home.finalCta.heading2" as="span" contentPath="home.finalCta.heading2" label="Final CTA Headline (Line 2)" className="block font-serif italic font-medium text-primary-dark mt-1">
+            {cta.heading2}
+          </Editable>
         </h2>
         <Link
           to="/booking"
           className="magnetic-btn mt-8 inline-flex items-center gap-2 bg-primary text-white font-semibold px-7 py-4 rounded-full shadow-xl shadow-primary/30"
         >
-          Book a Free Session
+          <Editable id="home.finalCta.ctaLabel" as="span" contentPath="home.finalCta.ctaLabel" label="Final CTA Button">{cta.ctaLabel}</Editable>
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

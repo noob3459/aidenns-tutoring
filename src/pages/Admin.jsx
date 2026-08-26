@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom'
 import {
   Sigma, Lock, LogOut, ExternalLink, Save, Check, Plus,
   Phone as PhoneIcon, CalendarClock, FileText, AlertTriangle, ShieldAlert,
-  Loader2, Trash2, Archive, RotateCcw, Copy, RefreshCw,
+  Loader2, Trash2, Archive, RotateCcw, Copy, RefreshCw, Paintbrush,
 } from 'lucide-react'
-import { useSiteConfig } from '../context/SiteConfigContext.jsx'
+import { useSiteConfig, SiteConfigProvider } from '../context/SiteConfigContext.jsx'
+import { EditorSelectionProvider } from '../context/EditorSelectionContext.jsx'
 import MonthCalendar from '../components/MonthCalendar.jsx'
+import EditorPreviewFrame, { PREVIEW_PAGES } from '../components/editor/EditorPreviewFrame.jsx'
+import EditorSidePanel from '../components/editor/EditorSidePanel.jsx'
 import { getPacificCurrentMonth, getPacificTodayISO, formatDayLabel, isValidDateISO } from '../lib/timezone.js'
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -681,6 +684,43 @@ function DangerTab({ resetConfig }) {
   )
 }
 
+/* ---------------- Tab: Visual Editor ---------------- */
+function VisualEditorTab() {
+  const [pageKey, setPageKey] = useState('home')
+
+  return (
+    <SiteConfigProvider>
+      <EditorSelectionProvider>
+        <div>
+          <h2 className="font-display font-bold text-xl text-ink mb-1">Visual Editor</h2>
+          <p className="text-muted text-sm mb-6">
+            Click any element in the preview below to select it, then edit its text, color, font size, or
+            entrance animation on the right. Nothing is saved until you press Save Changes.
+          </p>
+
+          <div className="flex flex-wrap gap-2 mb-6">
+            {PREVIEW_PAGES.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setPageKey(key)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  pageKey === key ? 'bg-primary text-white' : 'bg-background border border-divider text-ink/70 hover:border-primary/40'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <EditorPreviewFrame pageKey={pageKey} />
+          <EditorSidePanel />
+        </div>
+      </EditorSelectionProvider>
+    </SiteConfigProvider>
+  )
+}
+
 /* ---------------- Admin Console ---------------- */
 function AdminConsole() {
   const { config, updateConfig, resetConfig, lastSaved } = useSiteConfig()
@@ -699,6 +739,7 @@ function AdminConsole() {
     { key: 'contact', label: 'Contact & Links', Icon: PhoneIcon },
     { key: 'availability', label: 'Availability', Icon: CalendarClock },
     { key: 'content', label: 'Site Content', Icon: FileText },
+    { key: 'editor', label: 'Visual Editor', Icon: Paintbrush },
     { key: 'danger', label: 'Danger Zone', Icon: AlertTriangle },
   ]
 
@@ -753,6 +794,7 @@ function AdminConsole() {
           {tab === 'contact' && <ContactTab config={config} updateConfig={updateConfig} />}
           {tab === 'availability' && <AvailabilityTab />}
           {tab === 'content' && <ContentTab config={config} updateConfig={updateConfig} />}
+          {tab === 'editor' && <VisualEditorTab />}
           {tab === 'danger' && <DangerTab resetConfig={resetConfig} />}
         </div>
       </div>

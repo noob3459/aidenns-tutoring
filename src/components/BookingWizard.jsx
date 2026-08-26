@@ -7,12 +7,14 @@ import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import { getPacificCurrentMonth, formatDayLabel } from '../lib/timezone.js'
 import MonthCalendar from './MonthCalendar.jsx'
 import Field from './Field.jsx'
+import Editable from './editor/Editable.jsx'
 
 const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 export default function BookingWizard() {
   const { config } = useSiteConfig()
   const { contact } = config
+  const bookingSteps = config.booking.steps
 
   const [step, setStep] = useState(1)
   const [status, setStatus] = useState('idle') // 'idle' | 'sending' | 'sent' | 'error'
@@ -232,8 +234,12 @@ export default function BookingWizard() {
 
                 {step === 1 && (
                   <div>
-                    <h3 className="font-display font-bold text-xl text-ink mb-1">What grade is your student in?</h3>
-                    <p className="text-muted text-sm mb-6">We tutor kindergarten through 9th grade math. Free, always.</p>
+                    <Editable id="booking.steps.0.heading" as="h3" contentPath="booking.steps.0.heading" label="Booking Step 1 Heading" className="font-display font-bold text-xl text-ink mb-1">
+                      {bookingSteps[0].heading}
+                    </Editable>
+                    <Editable id="booking.steps.0.sub" as="p" contentPath="booking.steps.0.sub" label="Booking Step 1 Subtext" className="text-muted text-sm mb-6">
+                      {bookingSteps[0].sub}
+                    </Editable>
                     <div className="grid grid-cols-5 gap-2.5">
                       {GRADES.map((g) => (
                         <button
@@ -253,8 +259,12 @@ export default function BookingWizard() {
 
                 {step === 2 && (
                   <div>
-                    <h3 className="font-display font-bold text-xl text-ink mb-1">Online or in person?</h3>
-                    <p className="text-muted text-sm mb-6">Both formats are completely free.</p>
+                    <Editable id="booking.steps.1.heading" as="h3" contentPath="booking.steps.1.heading" label="Booking Step 2 Heading" className="font-display font-bold text-xl text-ink mb-1">
+                      {bookingSteps[1].heading}
+                    </Editable>
+                    <Editable id="booking.steps.1.sub" as="p" contentPath="booking.steps.1.sub" label="Booking Step 2 Subtext" className="text-muted text-sm mb-6">
+                      {bookingSteps[1].sub}
+                    </Editable>
                     <div className="grid sm:grid-cols-2 gap-4">
                       {[
                         { key: 'Online', Icon: Video, desc: 'Live video call with a shared digital whiteboard.' },
@@ -279,10 +289,12 @@ export default function BookingWizard() {
 
                 {step === 3 && (
                   <div>
-                    <h3 className="font-display font-bold text-xl text-ink mb-1">Pick a day and time</h3>
-                    <p className="text-muted text-sm mb-6">
-                      All times Pacific (America/Los Angeles).
-                    </p>
+                    <Editable id="booking.steps.2.heading" as="h3" contentPath="booking.steps.2.heading" label="Booking Step 3 Heading" className="font-display font-bold text-xl text-ink mb-1">
+                      {bookingSteps[2].heading}
+                    </Editable>
+                    <Editable id="booking.steps.2.sub" as="p" contentPath="booking.steps.2.sub" label="Booking Step 3 Subtext" className="text-muted text-sm mb-6">
+                      {bookingSteps[2].sub}
+                    </Editable>
 
                     <MonthCalendar
                       month={month}
@@ -332,8 +344,12 @@ export default function BookingWizard() {
 
                 {step === 4 && (
                   <div>
-                    <h3 className="font-display font-bold text-xl text-ink mb-1">A few last details</h3>
-                    <p className="text-muted text-sm mb-6">So we know who to expect, and where to send the confirmation.</p>
+                    <Editable id="booking.steps.3.heading" as="h3" contentPath="booking.steps.3.heading" label="Booking Step 4 Heading" className="font-display font-bold text-xl text-ink mb-1">
+                      {bookingSteps[3].heading}
+                    </Editable>
+                    <Editable id="booking.steps.3.sub" as="p" contentPath="booking.steps.3.sub" label="Booking Step 4 Subtext" className="text-muted text-sm mb-6">
+                      {bookingSteps[3].sub}
+                    </Editable>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <Field label="Parent / Guardian Name">
                         <input required value={form.parentName} onChange={(e) => update('parentName', e.target.value)} className="wizard-input" placeholder="Jamie Rivera" />

@@ -1,8 +1,10 @@
 import { Gift } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
+import Editable from './editor/Editable.jsx'
 
 export default function DonateBanner() {
   const { config } = useSiteConfig()
+  const { donateBanner } = config
   return (
     <section id="support" className="relative py-10 sm:py-12 px-6 sm:px-10 lg:px-16">
       <div className="max-w-7xl mx-auto">
@@ -12,12 +14,12 @@ export default function DonateBanner() {
               <Gift className="h-6 w-6 text-accent-dark" strokeWidth={2} />
             </span>
             <div>
-              <h3 className="font-display font-bold text-xl sm:text-2xl text-ink">
-                Every session is <span className="text-accent-dark">100% free.</span>
-              </h3>
-              <p className="text-muted text-sm sm:text-base mt-1.5 max-w-xl leading-relaxed">
-                Aidenn&rsquo;s Tutoring is funded entirely by generous donors, not tuition. If it&rsquo;s helped your family, consider chipping in to keep it free for the next one.
-              </p>
+              <Editable id="donateBanner.heading" as="h3" contentPath="donateBanner.heading" label="Donate Banner Heading" className="font-display font-bold text-xl sm:text-2xl text-ink">
+                {donateBanner.heading}
+              </Editable>
+              <Editable id="donateBanner.description" as="p" contentPath="donateBanner.description" label="Donate Banner Description" className="text-muted text-sm sm:text-base mt-1.5 max-w-xl leading-relaxed">
+                {donateBanner.description}
+              </Editable>
             </div>
           </div>
           <a
@@ -25,7 +27,9 @@ export default function DonateBanner() {
             className="magnetic-btn shrink-0 inline-flex items-center gap-2 bg-accent text-white font-semibold px-6 py-3.5 rounded-full shadow-lg shadow-accent/30 whitespace-nowrap"
           >
             <Gift className="h-4 w-4" />
-            Donate to Support a Session
+            <Editable id="donateBanner.ctaLabel" as="span" contentPath="donateBanner.ctaLabel" label="Donate Banner CTA Button">
+              {donateBanner.ctaLabel}
+            </Editable>
           </a>
         </div>
       </div>

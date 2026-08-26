@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Menu, X, ArrowUpRight } from 'lucide-react'
+import { useSiteConfig } from '../context/SiteConfigContext.jsx'
+import Editable from './editor/Editable.jsx'
 
-const NAV_LINKS = [
-  { label: 'Home', href: '/' },
-  { label: 'Services', href: '/services' },
-  { label: 'Approach', href: '/approach' },
-  { label: 'Contact', href: '/contact' },
-]
+// Destinations stay static (not editable in v1) — only the labels shown
+// for each link are config-driven, indexed to match config.navbar.navLinks.
+const NAV_HREFS = ['/', '/services', '/approach', '/contact']
 
 export default function Navbar() {
+  const { config } = useSiteConfig()
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
+  const navLinks = config.navbar.navLinks.map((link, i) => ({ label: link.label, href: NAV_HREFS[i] }))
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
@@ -37,18 +38,21 @@ export default function Navbar() {
               />
               <span className="absolute inset-0 rounded-full ring-2 ring-accent/40 group-hover:ring-accent/60 transition pointer-events-none" />
             </span>
-            <span className="font-display font-bold tracking-tight text-lg text-white">
-              Aidenn&rsquo;s Tutoring
-            </span>
+            <Editable id="navbar.brandText" as="span" contentPath="navbar.brandText" label="Navbar Brand Text" className="font-display font-bold tracking-tight text-lg text-white">
+              {config.navbar.brandText}
+            </Editable>
           </Link>
 
-          <span className="hidden md:inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] px-2.5 py-1 rounded-full border border-accent/50 bg-accent/15 text-accent">
+          <Editable
+            id="navbar.freeBadgeText" as="span" contentPath="navbar.freeBadgeText" label="Navbar Free Badge"
+            className="hidden md:inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] px-2.5 py-1 rounded-full border border-accent/50 bg-accent/15 text-accent"
+          >
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-            100% Free
-          </span>
+            {config.navbar.freeBadgeText}
+          </Editable>
 
           <div className="hidden lg:flex items-center gap-7 ml-auto mr-2">
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link, i) => (
               <NavLink
                 key={link.href}
                 to={link.href}
@@ -58,7 +62,9 @@ export default function Navbar() {
                   }`
                 }
               >
-                {link.label}
+                <Editable id={`navbar.navLinks.${i}.label`} as="span" contentPath={`navbar.navLinks.${i}.label`} label={`Nav Link ${i + 1} Label`}>
+                  {link.label}
+                </Editable>
               </NavLink>
             ))}
           </div>
@@ -67,7 +73,9 @@ export default function Navbar() {
             to="/booking"
             className="hidden lg:inline-flex magnetic-btn items-center gap-1.5 bg-accent hover:bg-accent-dark text-deep px-4 py-2 rounded-full text-sm font-bold shadow-lg shadow-accent/30 shrink-0"
           >
-            Book a Free Session
+            <Editable id="navbar.ctaLabel" as="span" contentPath="navbar.ctaLabel" label="Navbar CTA Button">
+              {config.navbar.ctaLabel}
+            </Editable>
             <ArrowUpRight className="h-4 w-4" strokeWidth={2.5} />
           </Link>
 
@@ -101,14 +109,14 @@ export default function Navbar() {
                   className="h-full w-full object-cover"
                 />
               </span>
-              <span className="font-display font-bold text-xl text-ink">Aidenn&rsquo;s Tutoring</span>
+              <span className="font-display font-bold text-xl text-ink">{config.navbar.brandText}</span>
             </span>
             <button onClick={() => setOpen(false)} className="p-2 rounded-full bg-divider/40">
               <X className="h-5 w-5" />
             </button>
           </div>
           <div className="flex flex-col gap-1">
-            {[...NAV_LINKS, { label: 'Book a Session', href: '/booking' }].map((link) => (
+            {navLinks.map((link) => (
               <NavLink
                 key={link.href}
                 to={link.href}
@@ -124,7 +132,7 @@ export default function Navbar() {
             onClick={() => setOpen(false)}
             className="mt-8 magnetic-btn flex items-center justify-center gap-2 bg-primary text-white px-6 py-4 rounded-full font-semibold w-full"
           >
-            Book a Free Session
+            {config.navbar.ctaLabel}
             <ArrowUpRight className="h-4 w-4" />
           </Link>
         </div>

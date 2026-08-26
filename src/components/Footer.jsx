@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
-import { SERVICES_FULL } from '../data/services.js'
+import Editable from './editor/Editable.jsx'
 
 export default function Footer() {
   const { config } = useSiteConfig()
@@ -21,7 +21,7 @@ export default function Footer() {
           <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-8 gap-6">
             <p className="text-white/50 max-w-md">{footer.blurb}</p>
             <Link to="/booking" className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-7 py-3.5 rounded-full self-start sm:self-auto">
-              Book a Free Session
+              <Editable id="footer.ctaLabel" as="span" contentPath="footer.ctaLabel" label="Footer CTA Button">{footer.ctaLabel}</Editable>
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -39,15 +39,15 @@ export default function Footer() {
             <p className="text-white/50 text-sm leading-relaxed max-w-xs">
               Certified K-9 math tutoring for every family, no tuition, no hidden fees, ever.
             </p>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-white/30 mt-6">
-              Community-Funded &middot; Est. 2024
-            </p>
+            <Editable id="footer.communityLine" as="p" contentPath="footer.communityLine" label="Footer Community Line" className="font-mono text-[10px] uppercase tracking-widest text-white/30 mt-6">
+              {footer.communityLine}
+            </Editable>
           </div>
 
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent mb-4">Services</p>
             <ul className="space-y-2.5">
-              {SERVICES_FULL.slice(0, 4).map((s, i) => (
+              {config.services.items.slice(0, 4).map((s, i) => (
                 <li key={i}>
                   <Link to="/services" className="text-white/65 hover:text-accent transition text-sm">{s.title}</Link>
                 </li>
@@ -81,9 +81,9 @@ export default function Footer() {
               <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping" />
               <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/60">
-              Booking Open &middot; Accepting Students
-            </span>
+            <Editable id="footer.statusPillText" as="span" contentPath="footer.statusPillText" label="Footer Status Pill" className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/60">
+              {footer.statusPillText}
+            </Editable>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-white/50 text-xs font-mono">
