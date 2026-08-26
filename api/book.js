@@ -129,9 +129,13 @@ export default async function handler(req, res) {
   }
 
   // Best-effort fetch of the admin's Zoom link (site_settings.contact.zoomLink)
-  // to include in both emails below for Online bookings. Never blocks the
-  // booking itself — a settings-read hiccup just means the emails go out
-  // without a Zoom link, same as if the admin never set one.
+  // — shown to the admin's own notification for reference only. The
+  // parent receipt below never gets it: the family only receives the
+  // Zoom link once the admin actually confirms the session (see
+  // sendConfirmationEmail in api/_lib/mailer.js, called from
+  // api/admin/content.js's booking-status action). Never blocks the
+  // booking itself — a settings-read hiccup just means the owner email
+  // goes out without a Zoom link, same as if the admin never set one.
   let zoomLink = ''
   try {
     const { data: settingsRow } = await supabase.from('site_settings').select('data').eq('id', 1).maybeSingle()
@@ -147,7 +151,7 @@ export default async function handler(req, res) {
   // booking's notes/phone or any secret.
   const [ownerResult, receiptResult] = await Promise.allSettled([
     sendOwnerNotification(booking, zoomLink),
-    sendParentReceipt(booking, zoomLink),
+    sendParentReceipt(booking),
   ])
 
   if (ownerResult.status === 'fulfilled') {

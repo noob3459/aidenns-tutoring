@@ -201,6 +201,94 @@ function AvailabilityTab() {
       .finally(() => setHistoryLoading(false))
   }
 
+  const [requests, setRequests] = useState([])
+  const [requestsLoading, setRequestsLoading] = useState(false)
+  const [requestError, setRequestError] = useState('')
+
+  // Reschedule is a per-request inline panel — only one open at a time,
+  // with its own compact month/date/slot picker (deliberately separate
+  // from the main calendar above, which drives a different concern:
+  // browsing/editing availability generally, not "move this one booking").
+  const [reschedulingId, setReschedulingId] = useState(null)
+  const [rescheduleMonth, setRescheduleMonth] = useState(getPacificCurrentMonth())
+  const [rescheduleMonthDays, setRescheduleMonthDays] = useState({})
+  const [rescheduleMonthLoading, setRescheduleMonthLoading] = useState(false)
+  const [rescheduleDate, setRescheduleDate] = useState(null)
+  const [rescheduleSlots, setRescheduleSlots] = useState([])
+  const [rescheduleSlotsLoading, setRescheduleSlotsLoading] = useState(false)
+
+  const loadRequests = () => {
+    setRequestsLoading(true)
+    adminFetch('/api/admin/availability?requests=1')
+      .then(({ data }) => setRequests(data.bookings || []))
+      .finally(() => setRequestsLoading(false))
+  }
+
+  const actOnRequest = async (bookingId, status) => {
+    setBusy(true)
+    setRequestError('')
+    const { data } = await adminFetch('/api/admin/content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'booking-status', bookingId, status }),
+    })
+    setBusy(false)
+    if (!data.ok) setRequestError(data.error || 'Could not update that request.')
+    refreshAll()
+  }
+
+  const startReschedule = (bookingId) => {
+    setReschedulingId(bookingId)
+    setRescheduleMonth(getPacificCurrentMonth())
+    setRescheduleDate(null)
+    setRescheduleSlots([])
+    setRequestError('')
+  }
+
+  const cancelReschedule = () => {
+    setReschedulingId(null)
+    setRescheduleDate(null)
+    setRescheduleSlots([])
+  }
+
+  const loadRescheduleMonth = (m) => {
+    setRescheduleMonthLoading(true)
+    adminFetch(`/api/admin/availability?month=${m}`)
+      .then(({ data }) => setRescheduleMonthDays(data.days || {}))
+      .finally(() => setRescheduleMonthLoading(false))
+  }
+
+  const selectRescheduleDate = (date) => {
+    setRescheduleDate(date)
+    setRescheduleSlotsLoading(true)
+    adminFetch(`/api/admin/availability?date=${date}`)
+      .then(({ data }) => setRescheduleSlots((data.slots || []).filter((s) => s.status === 'open' && !s.archived_at)))
+      .finally(() => setRescheduleSlotsLoading(false))
+  }
+
+  const confirmReschedule = async (newSlotId) => {
+    setBusy(true)
+    setRequestError('')
+    const { data } = await adminFetch('/api/admin/content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reschedule-booking', bookingId: reschedulingId, newSlotId }),
+    })
+    setBusy(false)
+    if (!data.ok) { setRequestError(data.error || 'Could not reschedule that booking.'); return }
+    cancelReschedule()
+    refreshAll()
+  }
+
+  useEffect(() => { if (reschedulingId) loadRescheduleMonth(rescheduleMonth) }, [reschedulingId, rescheduleMonth])
+
+  const rescheduleDayStatus = Object.fromEntries(
+    Object.entries(rescheduleMonthDays).map(([date, d]) => [
+      date,
+      d.isClosed ? 'closed' : d.open > 0 ? 'available' : d.total > 0 ? 'full' : 'closed',
+    ])
+  )
+
   const loadMonth = (m) => {
     setMonthLoading(true)
     adminFetch(`/api/admin/availability?month=${m}`)
@@ -226,6 +314,7 @@ function AvailabilityTab() {
   useEffect(() => { loadMonth(month) }, [month])
   useEffect(() => { loadRules() }, [])
   useEffect(() => { loadHistory() }, [])
+  useEffect(() => { loadRequests() }, [])
   useEffect(() => { if (selectedDate) loadDetail(selectedDate) }, [selectedDate])
 
   // Derive a coarse status per date for the calendar (available/full/closed)
@@ -240,6 +329,7 @@ function AvailabilityTab() {
     loadMonth(month)
     if (selectedDate) loadDetail(selectedDate)
     loadHistory()
+    loadRequests()
   }
 
   const toggleClosed = async (isClosed) => {
@@ -382,6 +472,92 @@ function AvailabilityTab() {
 
   return (
     <div>
+      <div className="mb-10 pb-8 border-b border-divider">
+        <h2 className="font-display font-bold text-xl text-ink mb-1">Booking Requests</h2>
+        <p className="text-muted text-sm mb-4">New sessions awaiting a decision. Accept, reschedule, or decline each one.</p>
+
+        {requestError && (
+          <div className="mb-3 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {requestError}
+          </div>
+        )}
+
+        {requestsLoading ? (
+          <div className="flex items-center gap-2 text-muted text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading&hellip;</div>
+        ) : requests.length === 0 ? (
+          <p className="text-muted text-sm">No pending requests right now.</p>
+        ) : (
+          <div className="space-y-3">
+            {requests.map((r) => (
+              <div key={r.id} className="bg-white border border-divider rounded-2xl p-4 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-ink">{r.parent_name} &middot; {r.student_name} (Grade {r.grade})</p>
+                  <StatusPill status={r.status} />
+                </div>
+                <p className="text-muted text-xs mt-0.5">{r.requested_date_label} at {r.requested_time} &middot; {r.format}</p>
+                <p className="text-muted text-xs mt-0.5">{r.email} &middot; {r.phone}</p>
+                {r.notes && <p className="text-muted text-xs mt-1 italic">&ldquo;{r.notes}&rdquo;</p>}
+
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  <button type="button" onClick={() => actOnRequest(r.id, 'confirmed')} disabled={busy} className="text-xs font-medium bg-emerald-500 text-white px-3 py-1.5 rounded-full disabled:opacity-50">Accept</button>
+                  <button
+                    type="button"
+                    onClick={() => (reschedulingId === r.id ? cancelReschedule() : startReschedule(r.id))}
+                    disabled={busy}
+                    className="text-xs font-medium bg-primary/10 text-primary-dark px-3 py-1.5 rounded-full disabled:opacity-50"
+                  >
+                    {reschedulingId === r.id ? 'Cancel Reschedule' : 'Reschedule'}
+                  </button>
+                  <button type="button" onClick={() => actOnRequest(r.id, 'declined')} disabled={busy} className="text-xs font-medium bg-divider text-ink px-3 py-1.5 rounded-full disabled:opacity-50">Decline</button>
+                </div>
+
+                {reschedulingId === r.id && (
+                  <div className="mt-4 pt-4 border-t border-divider">
+                    <div className="min-w-0 overflow-x-auto max-w-xs">
+                      <MonthCalendar
+                        month={rescheduleMonth}
+                        today={todayISO}
+                        minMonth={getPacificCurrentMonth()}
+                        maxMonth={undefined}
+                        dayStatus={rescheduleDayStatus}
+                        selectedDate={rescheduleDate}
+                        onSelectDate={selectRescheduleDate}
+                        onMonthChange={setRescheduleMonth}
+                        loading={rescheduleMonthLoading}
+                      />
+                    </div>
+                    {rescheduleDate && (
+                      <div className="mt-3">
+                        <p className="text-xs font-mono uppercase tracking-widest text-muted mb-2">Open times &middot; {formatDayLabel(rescheduleDate)}</p>
+                        {rescheduleSlotsLoading ? (
+                          <div className="flex items-center gap-2 text-muted text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading&hellip;</div>
+                        ) : rescheduleSlots.length === 0 ? (
+                          <p className="text-muted text-sm">No open times on this date.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {rescheduleSlots.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => confirmReschedule(s.id)}
+                                disabled={busy}
+                                className="text-xs font-medium bg-background border border-divider px-3 py-1.5 rounded-full hover:border-primary/40 disabled:opacity-50"
+                              >
+                                {s.start_time.slice(0, 5)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <h2 className="font-display font-bold text-xl text-ink mb-1">Booking Availability</h2>
       <p className="text-muted text-sm mb-6">Click a date to manage its time slots, close it, or review its bookings.</p>
 

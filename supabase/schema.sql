@@ -613,6 +613,103 @@ revoke all on function public.update_booking_status(uuid, text) from public, ano
 grant execute on function public.update_booking_status(uuid, text) to service_role;
 
 -- ---------------------------------------------------------------------
+-- reschedule_booking — moves a pending or confirmed booking onto a
+-- different open slot: frees the old slot back to 'open' (if the
+-- booking had one), claims the new slot, and rewrites the booking's
+-- slot_id/requested_date/requested_date_label/requested_time to match —
+-- the exact same "derive display fields from the locked slot row"
+-- pattern claim_slot_and_book_v2 uses, so there's nothing for a caller
+-- to forge here either. The booking's status is left untouched
+-- (rescheduling a pending request keeps it pending; rescheduling a
+-- confirmed one keeps it confirmed) — the admin dashboard's Reschedule
+-- action is a distinct operation from Accept/Decline.
+--
+-- Declined/completed/cancelled bookings are terminal and cannot be
+-- rescheduled, matching update_booking_status's own transition matrix.
+-- ---------------------------------------------------------------------
+create or replace function public.reschedule_booking(
+  p_booking_id uuid,
+  p_new_slot_id uuid
+)
+returns public.bookings
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $$
+declare
+  v_booking public.bookings%rowtype;
+  v_old_slot public.availability_slots%rowtype;
+  v_new_slot public.availability_slots%rowtype;
+  v_today_pacific date;
+  v_requested_time text;
+  v_requested_date_label text;
+begin
+  select * into v_booking from public.bookings where id = p_booking_id for update;
+  if not found then
+    raise exception 'booking_not_found' using errcode = 'P0002';
+  end if;
+
+  if v_booking.status not in ('pending', 'confirmed') then
+    raise exception 'not_reschedulable';
+  end if;
+
+  if v_booking.slot_id is not null then
+    select * into v_old_slot from public.availability_slots where id = v_booking.slot_id for update;
+  end if;
+
+  select * into v_new_slot
+  from public.availability_slots
+  where id = p_new_slot_id and archived_at is null
+  for update;
+
+  if not found then
+    raise exception 'slot_not_found' using errcode = 'P0002';
+  end if;
+
+  if p_new_slot_id = v_booking.slot_id then
+    raise exception 'same_slot';
+  end if;
+
+  if v_new_slot.status <> 'open' then
+    raise exception 'slot_unavailable' using errcode = 'P0001';
+  end if;
+
+  -- Same past-date/past-time guards as claim_slot_and_book_v2, evaluated
+  -- in America/Los_Angeles.
+  v_today_pacific := (now() at time zone 'America/Los_Angeles')::date;
+  if v_new_slot.slot_date < v_today_pacific then
+    raise exception 'slot_past_date';
+  end if;
+  if v_new_slot.slot_date = v_today_pacific
+     and v_new_slot.start_time <= (now() at time zone 'America/Los_Angeles')::time then
+    raise exception 'slot_past_time';
+  end if;
+
+  if v_old_slot.id is not null then
+    update public.availability_slots set status = 'open' where id = v_old_slot.id;
+  end if;
+
+  update public.availability_slots set status = 'booked' where id = p_new_slot_id;
+
+  v_requested_time := to_char(v_new_slot.slot_date + v_new_slot.start_time, 'FMHH12:MI AM');
+  v_requested_date_label := to_char(v_new_slot.slot_date, 'FMDy, FMMon FMDD');
+
+  update public.bookings
+  set slot_id = p_new_slot_id,
+      requested_date = v_new_slot.slot_date,
+      requested_date_label = v_requested_date_label,
+      requested_time = v_requested_time
+  where id = p_booking_id
+  returning * into v_booking;
+
+  return v_booking;
+end;
+$$;
+
+revoke all on function public.reschedule_booking(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.reschedule_booking(uuid, uuid) to service_role;
+
+-- ---------------------------------------------------------------------
 -- Explicit grants — every table, minimum required privileges for what
 -- the application code actually does, service_role only. Being explicit
 -- here (rather than assuming default privileges apply) avoids the

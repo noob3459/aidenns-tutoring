@@ -11,7 +11,7 @@ import { isValidMonthISO, isValidDateISO, getPacificTodayISO } from '../_lib/tim
 // same validation, same error messages, same Supabase calls — just
 // reorganized under one handler with an explicit action allowlist.
 //
-// GET  ?month=YYYY-MM | ?date=YYYY-MM-DD | ?rules=1 | ?history=1
+// GET  ?month=YYYY-MM | ?date=YYYY-MM-DD | ?rules=1 | ?history=1 | ?requests=1
 // POST { action: <one of ALLOWED_ACTIONS>, ...fields }
 //
 // requireAdmin() (session + CSRF/origin check) gates the entire handler,
@@ -147,6 +147,30 @@ async function getBookingHistory(res, supabase) {
   if (error) {
     console.error('Booking history query error:', error)
     return res.status(500).json({ ok: false, error: 'Could not load booking history.' })
+  }
+  return res.status(200).json({ bookings: data || [] })
+}
+
+const BOOKING_REQUESTS_MAX = 300
+
+// Every pending request awaiting a decision, any date, soonest first —
+// so the admin dashboard's Booking Requests section always surfaces
+// what needs a decision (accept / reschedule / decline) next. Confirmed
+// bookings already have their own management (reschedule/cancel/
+// complete) in the per-date Availability detail view, so this stays
+// scoped to exactly the "needs a decision" set.
+async function getBookingRequests(res, supabase) {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, slot_id, parent_name, student_name, grade, format, requested_date, requested_date_label, requested_time, email, phone, notes, status, created_at')
+    .eq('status', 'pending')
+    .order('requested_date', { ascending: true })
+    .order('created_at', { ascending: true })
+    .limit(BOOKING_REQUESTS_MAX)
+
+  if (error) {
+    console.error('Booking requests query error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not load booking requests.' })
   }
   return res.status(200).json({ bookings: data || [] })
 }
@@ -448,7 +472,8 @@ export default async function handler(req, res) {
     if (req.query.month) return getMonthSummary(res, supabase, req.query.month)
     if (req.query.rules) return getRules(res, supabase)
     if (req.query.history) return getBookingHistory(res, supabase)
-    return res.status(400).json({ ok: false, error: 'Specify month, date, rules, or history.' })
+    if (req.query.requests) return getBookingRequests(res, supabase)
+    return res.status(400).json({ ok: false, error: 'Specify month, date, rules, history, or requests.' })
   }
 
   if (req.method === 'POST') {

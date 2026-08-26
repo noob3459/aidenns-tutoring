@@ -42,20 +42,90 @@ function parseBccList(raw) {
   return out
 }
 
-function detailLines(b, zoomLink) {
-  const lines = [
-    ['Parent / Guardian', b.parent_name],
-    ['Student', b.student_name],
-    ['Grade', b.grade],
-    ['Format', b.format],
-    ['Requested', `${b.requested_date_label} at ${b.requested_time}`],
-    ['Email', b.email],
-    ['Phone', b.phone],
-    ['Notes', b.notes || '(none)'],
-    ['Booking ID', b.id],
+// ---------------------------------------------------------------------
+// Shared HTML email chrome. Table-based layout with only inline styles —
+// deliberately avoids flexbox/grid, which many email clients (Outlook
+// desktop especially) don't support — so this renders consistently
+// everywhere, not just in whatever client the recipient happens to use.
+// ---------------------------------------------------------------------
+
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"
+const NAVY = '#152B52'
+const PRIMARY = '#1B3A6B'
+const INK = '#1F2430'
+const MUTED = '#6B7280'
+const DIVIDER = '#E3E1DA'
+const BACKGROUND = '#F4F3EF'
+const SURFACE = '#F9F9F7'
+
+function wrapEmail(bodyHtml) {
+  return `
+<div style="background:${BACKGROUND};padding:32px 16px;font-family:${FONT};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;border-collapse:collapse;">
+    <tr>
+      <td style="background:${NAVY};border-radius:20px 20px 0 0;padding:28px 32px;text-align:center;">
+        <span style="display:inline-block;width:34px;height:34px;background:${PRIMARY};border:1px solid rgba(255,255,255,0.25);border-radius:50%;line-height:34px;color:#fff;font-weight:700;font-size:15px;">&Sigma;</span>
+        <div style="color:#fff;font-weight:700;font-size:16px;margin-top:12px;letter-spacing:0.01em;">Aidenn&rsquo;s Tutoring</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;padding:36px 32px;border-left:1px solid ${DIVIDER};border-right:1px solid ${DIVIDER};">
+        ${bodyHtml}
+      </td>
+    </tr>
+    <tr>
+      <td style="background:${SURFACE};border:1px solid ${DIVIDER};border-top:none;border-radius:0 0 20px 20px;padding:18px 32px;text-align:center;">
+        <p style="margin:0;font-size:12px;color:${MUTED};">Aidenn&rsquo;s Tutoring &middot; 100% free, always</p>
+      </td>
+    </tr>
+  </table>
+</div>`
+}
+
+function heading(text) {
+  return `<h1 style="margin:0 0 18px;font-family:${FONT};font-size:21px;font-weight:700;color:${INK};letter-spacing:-0.01em;">${escapeHtml(text)}</h1>`
+}
+
+function paragraph(html, extraStyle = '') {
+  return `<p style="margin:0 0 16px;font-family:${FONT};font-size:15px;line-height:1.6;color:${INK};${extraStyle}">${html}</p>`
+}
+
+function callout(html, { bg = '#FFF7ED', border = '#FED7AA', color = INK } = {}) {
+  return `<div style="margin:0 0 20px;background:${bg};border:1px solid ${border};border-radius:12px;padding:14px 18px;font-family:${FONT};font-size:14px;line-height:1.55;color:${color};">${html}</div>`
+}
+
+function button(href, label, { bg = PRIMARY } = {}) {
+  return `<a href="${escapeHtml(href)}" style="display:inline-block;background:${bg};color:#ffffff;text-decoration:none;font-family:${FONT};font-weight:600;font-size:14px;padding:12px 26px;border-radius:999px;">${escapeHtml(label)}</a>`
+}
+
+// A compact "pill row" summarizing grade / format / date+time — the
+// three facts every recipient needs at a glance, styled as small badges
+// rather than a plain label:value table.
+function summaryPills(booking) {
+  const pills = [
+    `Grade ${booking.grade}`,
+    booking.format,
+    `${booking.requested_date_label} &middot; ${booking.requested_time}`,
   ]
-  if (b.format === 'Online' && zoomLink) lines.splice(4, 0, ['Zoom Link', zoomLink])
-  return lines
+  return `<div style="margin:0 0 20px;">${pills.map((p) => `
+    <span style="display:inline-block;background:${SURFACE};border:1px solid ${DIVIDER};border-radius:999px;padding:6px 14px;margin:0 6px 8px 0;font-family:${FONT};font-size:12.5px;font-weight:600;color:${PRIMARY};">${p}</span>`).join('')}</div>`
+}
+
+function detailTable(rows) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-family:${FONT};font-size:14px;">
+    ${rows.map(([label, value, isLink]) => `
+      <tr>
+        <td style="padding:6px 14px 6px 0;color:${MUTED};white-space:nowrap;vertical-align:top;">${escapeHtml(label)}</td>
+        <td style="padding:6px 0;font-weight:600;color:${INK};">${isLink ? `<a href="${escapeHtml(String(value))}" style="color:${PRIMARY};">${escapeHtml(String(value))}</a>` : escapeHtml(String(value))}</td>
+      </tr>`).join('')}
+  </table>`
+}
+
+function zoomBlock(zoomLink) {
+  return `<div style="margin:0 0 20px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:14px;padding:20px;text-align:center;">
+    <p style="margin:0 0 12px;font-family:${FONT};font-size:14px;color:${INK};">Join your session here:</p>
+    ${button(zoomLink, 'Join on Zoom', { bg: '#2563EB' })}
+  </div>`
 }
 
 async function send({ to, bcc, replyTo, subject, text, html }) {
@@ -69,33 +139,43 @@ async function send({ to, bcc, replyTo, subject, text, html }) {
   return data?.id || null
 }
 
+// ---------------------------------------------------------------------
+// Owner notification — sent the moment a request comes in. Zoom link
+// (if set) is shown here purely for the admin's own reference; the
+// family never sees it until the admin actually confirms the session
+// (see sendConfirmationEmail below) — that gating is the point of this
+// whole email set, not just the parent-facing copy.
+// ---------------------------------------------------------------------
 export async function sendOwnerNotification(booking, zoomLink) {
   const to = process.env.BOOKING_NOTIFICATION_TO || MAIL_REPLY_TO
   const bcc = parseBccList(process.env.BOOKING_NOTIFICATION_BCC)
-  const lines = detailLines(booking, zoomLink)
+
+  const rows = [
+    ['Parent / Guardian', booking.parent_name],
+    ['Student', booking.student_name],
+    ['Email', booking.email],
+    ['Phone', booking.phone],
+    ['Notes', booking.notes || '(none)'],
+    ['Booking ID', booking.id],
+  ]
+  if (booking.format === 'Online' && zoomLink) rows.splice(4, 0, ['Zoom Link', zoomLink, true])
 
   const text = [
     'New free session request. Action needed to confirm.',
     '',
-    ...lines.map(([label, value]) => `${label}: ${value}`),
+    `Grade ${booking.grade} · ${booking.format} · ${booking.requested_date_label} at ${booking.requested_time}`,
+    ...rows.map(([label, value]) => `${label}: ${value}`),
     '',
-    'This is a REQUEST only. Reply to this email (goes straight to the parent) to confirm the time, then mark it "confirmed" in Supabase.',
+    'This is a REQUEST only. Reply to this email (goes straight to the parent) or use the admin dashboard to confirm, reschedule, or decline.',
   ].join('\n')
 
-  const html = `
-    <h2 style="font-family:sans-serif;">New Free Session Request</h2>
-    <p style="font-family:sans-serif;color:#b45309;"><strong>Action needed:</strong> this is a request only. Nothing is confirmed yet.</p>
-    <table style="font-family:sans-serif;border-collapse:collapse;">
-      ${lines.map(([label, value]) => `
-        <tr>
-          <td style="padding:4px 12px 4px 0;color:#666;">${escapeHtml(label)}</td>
-          <td style="padding:4px 0;font-weight:600;">${
-            label === 'Zoom Link' ? `<a href="${escapeHtml(value)}">${escapeHtml(value)}</a>` : escapeHtml(String(value))
-          }</td>
-        </tr>`).join('')}
-    </table>
-    <p style="font-family:sans-serif;">Reply directly to this email to reach the parent, then update the booking's status in Supabase once confirmed.</p>
-  `
+  const html = wrapEmail([
+    heading('New Free Session Request'),
+    callout('<strong>Action needed</strong> &mdash; this is a request only. Nothing is confirmed yet.'),
+    summaryPills(booking),
+    detailTable(rows),
+    paragraph('Reply directly to this email to reach the parent, or head to the admin dashboard to confirm, reschedule, or decline.', `color:${MUTED};margin-top:20px;`),
+  ].join(''))
 
   // Owner notification intentionally replies to the parent, not MAIL_REPLY_TO,
   // so hitting "reply" reaches the family directly.
@@ -109,41 +189,121 @@ export async function sendOwnerNotification(booking, zoomLink) {
   })
 }
 
-export async function sendParentReceipt(booking, zoomLink) {
-  const includeZoom = booking.format === 'Online' && Boolean(zoomLink)
-
+// ---------------------------------------------------------------------
+// Parent receipt — sent the moment a request comes in. Deliberately
+// carries NO Zoom link: the family only receives that once the session
+// is actually confirmed (sendConfirmationEmail), never at the request
+// stage, so a session someone never confirms can't leak a join link.
+// ---------------------------------------------------------------------
+export async function sendParentReceipt(booking) {
   const text = [
     `Hi ${booking.parent_name},`,
     '',
     `Thanks for requesting a free math session for ${booking.student_name} (Grade ${booking.grade}) on ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
     '',
-    'Your request has been received, but it is NOT confirmed yet. Aidenn personally reviews and confirms every session — you’ll hear back directly once it’s confirmed.',
-    ...(includeZoom ? ['', `Once confirmed, join here: ${zoomLink}`] : []),
+    'Your request has been received, but it is NOT confirmed yet. Aidenn personally reviews and confirms every session — you’ll hear back directly (with the Zoom link, if online) once it’s confirmed.',
     '',
     'If you don’t hear back within a day or two, feel free to reply to this email directly.',
     '',
     'Aidenn’s Tutoring',
   ].join('\n')
 
-  const html = `
-    <p style="font-family:sans-serif;">Hi ${escapeHtml(booking.parent_name)},</p>
-    <p style="font-family:sans-serif;">Thanks for requesting a free math session for <strong>${escapeHtml(booking.student_name)}</strong> (Grade ${escapeHtml(booking.grade)}) on
-      <strong>${escapeHtml(booking.requested_date_label)} at ${escapeHtml(booking.requested_time)}</strong>, ${escapeHtml(booking.format.toLowerCase())}.</p>
-    <p style="font-family:sans-serif;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;">
-      <strong>Your request has been received, but it is not confirmed yet.</strong> Aidenn personally reviews and confirms every session — you'll hear back directly once it's confirmed.
-    </p>
-    ${includeZoom ? `
-    <p style="font-family:sans-serif;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;">
-      Once confirmed, join your session here: <a href="${escapeHtml(zoomLink)}">${escapeHtml(zoomLink)}</a>
-    </p>` : ''}
-    <p style="font-family:sans-serif;">If you don't hear back within a day or two, just reply to this email.</p>
-    <p style="font-family:sans-serif;">Aidenn&rsquo;s Tutoring</p>
-  `
+  const html = wrapEmail([
+    heading('Request Received!'),
+    paragraph(`Hi ${escapeHtml(booking.parent_name)},`),
+    paragraph(`Thanks for requesting a free math session for <strong>${escapeHtml(booking.student_name)}</strong>.`),
+    summaryPills(booking),
+    callout('<strong>This isn&rsquo;t confirmed yet.</strong> Aidenn personally reviews and confirms every session &mdash; you&rsquo;ll hear back directly (with the Zoom link, if online) once it&rsquo;s confirmed.'),
+    paragraph('If you don&rsquo;t hear back within a day or two, just reply to this email.', `color:${MUTED};`),
+    paragraph('Aidenn&rsquo;s Tutoring', 'margin:0;'),
+  ].join(''))
 
   return send({
     to: booking.email,
     replyTo: MAIL_REPLY_TO,
     subject: `We received your request: Aidenn's Tutoring`,
+    text,
+    html,
+  })
+}
+
+// ---------------------------------------------------------------------
+// Confirmation — sent to the parent the moment the admin accepts a
+// pending request. This is the ONLY email that ever carries the Zoom
+// link, and only for Online sessions with a link configured.
+// ---------------------------------------------------------------------
+export async function sendConfirmationEmail(booking, zoomLink) {
+  const includeZoom = booking.format === 'Online' && Boolean(zoomLink)
+
+  const text = [
+    `Hi ${booking.parent_name},`,
+    '',
+    `Good news — ${booking.student_name}'s free math session is confirmed for ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
+    ...(includeZoom ? ['', `Join here: ${zoomLink}`] : []),
+    '',
+    'See you then! Reply to this email if anything changes on your end.',
+    '',
+    'Aidenn’s Tutoring',
+  ].join('\n')
+
+  const html = wrapEmail([
+    heading('Your Session Is Confirmed!'),
+    paragraph(`Hi ${escapeHtml(booking.parent_name)},`),
+    paragraph(`Good news — <strong>${escapeHtml(booking.student_name)}</strong>'s free math session is confirmed.`),
+    summaryPills(booking),
+    includeZoom ? zoomBlock(zoomLink) : (booking.format === 'In-Person' ? callout('See you at the agreed location — reply to this email if you need directions or a reminder.', { bg: SURFACE, border: DIVIDER, color: MUTED }) : ''),
+    paragraph('Reply to this email any time if your plans change.', `color:${MUTED};`),
+    paragraph('Aidenn&rsquo;s Tutoring', 'margin:0;'),
+  ].join(''))
+
+  return send({
+    to: booking.email,
+    replyTo: MAIL_REPLY_TO,
+    subject: `Confirmed: ${booking.student_name}'s session on ${booking.requested_date_label}`,
+    text,
+    html,
+  })
+}
+
+// ---------------------------------------------------------------------
+// Reschedule — sent to the parent whenever an admin moves a booking to
+// a different slot, whether it was pending or already confirmed. Only
+// shows the Zoom link if the booking is (still) confirmed and online —
+// a rescheduled-but-still-pending request stays link-free, same rule
+// as the initial receipt.
+// ---------------------------------------------------------------------
+export async function sendRescheduleEmail(booking, zoomLink) {
+  const includeZoom = booking.status === 'confirmed' && booking.format === 'Online' && Boolean(zoomLink)
+
+  const text = [
+    `Hi ${booking.parent_name},`,
+    '',
+    `${booking.student_name}'s free math session has been moved to a new time: ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
+    booking.status === 'confirmed' ? 'This session is confirmed.' : 'This session is still pending confirmation.',
+    ...(includeZoom ? ['', `Join here: ${zoomLink}`] : []),
+    '',
+    'Reply to this email if the new time doesn’t work.',
+    '',
+    'Aidenn’s Tutoring',
+  ].join('\n')
+
+  const html = wrapEmail([
+    heading('Your Session Time Has Changed'),
+    paragraph(`Hi ${escapeHtml(booking.parent_name)},`),
+    paragraph(`<strong>${escapeHtml(booking.student_name)}</strong>'s free math session has been moved to a new time.`),
+    summaryPills(booking),
+    booking.status === 'confirmed'
+      ? callout('This session is confirmed at the new time.', { bg: '#ECFDF5', border: '#A7F3D0', color: INK })
+      : callout('This session is still pending confirmation at the new time.'),
+    includeZoom ? zoomBlock(zoomLink) : '',
+    paragraph('Reply to this email if the new time doesn&rsquo;t work.', `color:${MUTED};`),
+    paragraph('Aidenn&rsquo;s Tutoring', 'margin:0;'),
+  ].join(''))
+
+  return send({
+    to: booking.email,
+    replyTo: MAIL_REPLY_TO,
+    subject: `Time changed: ${booking.student_name}'s session is now ${booking.requested_date_label}`,
     text,
     html,
   })

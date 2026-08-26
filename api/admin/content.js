@@ -2,22 +2,43 @@ import crypto from 'node:crypto'
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { validateSettings } from '../_lib/validateSettings.js'
+import { sendConfirmationEmail, sendRescheduleEmail } from '../_lib/mailer.js'
 
 // Consolidates admin site-settings (read/update), booking status
-// transitions, and Visual Editor image uploads into one deployed
-// function, to stay well under Vercel's Hobby serverless function limit.
+// transitions, rescheduling, and Visual Editor image uploads into one
+// deployed function, to stay well under Vercel's Hobby serverless
+// function limit.
 //
 // GET             -> current site_settings
 // POST { action: 'update-settings', ...patch }  -> validated, merged, saved
 // POST { action: 'booking-status', bookingId, status } -> calls the
 //   update_booking_status DB function (same transactional state-machine
-//   enforcement as before — unchanged)
+//   enforcement as before — unchanged); confirming a booking also emails
+//   the parent the confirmation (with the Zoom link, if online) — the
+//   only point in the whole flow where the family receives that link
+// POST { action: 'reschedule-booking', bookingId, newSlotId } -> calls
+//   the reschedule_booking DB function, then emails the parent the new
+//   time (still gated the same way: only includes the Zoom link if the
+//   booking is confirmed)
 // POST { action: 'upload-image', contentType, dataBase64 } -> uploads to
 //   the site-images Storage bucket (service_role only — see
 //   supabase/schema.sql), returns the public URL
 
-const ALLOWED_ACTIONS = ['update-settings', 'booking-status', 'upload-image']
+const ALLOWED_ACTIONS = ['update-settings', 'booking-status', 'reschedule-booking', 'upload-image']
 const ALLOWED_STATUSES = ['pending', 'confirmed', 'declined', 'completed', 'cancelled']
+
+// Best-effort site_settings read for the admin's Zoom Personal Meeting
+// Room link. Never throws — a settings-read hiccup just means the email
+// goes out without a Zoom link, same as if the admin never set one.
+async function getZoomLink(supabase) {
+  try {
+    const { data } = await supabase.from('site_settings').select('data').eq('id', 1).maybeSingle()
+    return data?.data?.contact?.zoomLink || ''
+  } catch (err) {
+    console.error('Zoom link lookup failed:', err)
+    return ''
+  }
+}
 
 const IMAGE_BUCKET = 'site-images'
 const ALLOWED_IMAGE_TYPES = {
@@ -82,8 +103,72 @@ async function bookingStatus(res, supabase, body) {
     if (error.message?.includes('booking_not_found')) {
       return res.status(404).json({ ok: false, error: 'Booking not found.' })
     }
+    if (error.message?.includes('invalid_transition')) {
+      return res.status(409).json({ ok: false, error: 'That booking can no longer move to that status.' })
+    }
     console.error('Booking status update error:', error)
     return res.status(500).json({ ok: false, error: 'Could not update that booking.' })
+  }
+
+  // The confirmation email is the ONE point in the whole flow where the
+  // family receives the Zoom link — never at request time. A send
+  // failure here never fails the request: the status change already
+  // succeeded and is the source of truth.
+  if (body.status === 'confirmed') {
+    const zoomLink = await getZoomLink(supabase)
+    try {
+      await sendConfirmationEmail(data, zoomLink)
+    } catch (err) {
+      console.error('Confirmation email failed:', err)
+    }
+  }
+
+  return res.status(200).json({ ok: true, booking: data })
+}
+
+async function rescheduleBooking(res, supabase, body) {
+  if (typeof body.bookingId !== 'string' || !body.bookingId) {
+    return res.status(400).json({ ok: false, error: 'bookingId is required.' })
+  }
+  if (typeof body.newSlotId !== 'string' || !body.newSlotId) {
+    return res.status(400).json({ ok: false, error: 'newSlotId is required.' })
+  }
+
+  const { data, error } = await supabase
+    .rpc('reschedule_booking', { p_booking_id: body.bookingId, p_new_slot_id: body.newSlotId })
+    .single()
+
+  if (error) {
+    if (error.message?.includes('booking_not_found')) {
+      return res.status(404).json({ ok: false, error: 'Booking not found.' })
+    }
+    if (error.message?.includes('not_reschedulable')) {
+      return res.status(409).json({ ok: false, error: 'That booking can no longer be rescheduled.' })
+    }
+    if (error.message?.includes('slot_not_found')) {
+      return res.status(409).json({ ok: false, error: 'That time slot no longer exists.' })
+    }
+    if (error.message?.includes('same_slot')) {
+      return res.status(400).json({ ok: false, error: 'That is already this booking’s current time.' })
+    }
+    if (error.message?.includes('slot_unavailable')) {
+      return res.status(409).json({ ok: false, error: 'That time is already taken. Please pick another.' })
+    }
+    if (error.message?.includes('slot_past_date')) {
+      return res.status(409).json({ ok: false, error: 'That date has already passed.' })
+    }
+    if (error.message?.includes('slot_past_time')) {
+      return res.status(409).json({ ok: false, error: 'That time has already passed today.' })
+    }
+    console.error('Reschedule error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not reschedule that booking.' })
+  }
+
+  const zoomLink = await getZoomLink(supabase)
+  try {
+    await sendRescheduleEmail(data, zoomLink)
+  } catch (err) {
+    console.error('Reschedule email failed:', err)
   }
 
   return res.status(200).json({ ok: true, booking: data })
@@ -160,6 +245,7 @@ export default async function handler(req, res) {
 
     if (body.action === 'update-settings') return updateSettings(req, res, supabase, body)
     if (body.action === 'booking-status') return bookingStatus(res, supabase, body)
+    if (body.action === 'reschedule-booking') return rescheduleBooking(res, supabase, body)
     if (body.action === 'upload-image') return uploadImage(res, supabase, body)
   }
 
