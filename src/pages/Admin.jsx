@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Sigma, Lock, LogOut, ExternalLink, Save, Check, Plus,
   Phone as PhoneIcon, CalendarClock, FileText, AlertTriangle, ShieldAlert,
-  Loader2, Trash2, Archive, RotateCcw, Copy, RefreshCw, Paintbrush,
+  Loader2, Trash2, Archive, RotateCcw, Copy, RefreshCw, Paintbrush, Undo2, Redo2,
 } from 'lucide-react'
 import { useSiteConfig, SiteConfigProvider } from '../context/SiteConfigContext.jsx'
 import { EditorSelectionProvider } from '../context/EditorSelectionContext.jsx'
@@ -724,6 +724,32 @@ function DangerTab({ resetConfig }) {
 }
 
 /* ---------------- Tab: Visual Editor ---------------- */
+function UndoRedoControls() {
+  const { undo, redo, canUndo, canRedo } = useSiteConfig()
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={undo}
+        disabled={!canUndo}
+        title="Undo"
+        className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-divider text-ink/70 hover:border-primary/40 disabled:opacity-30 disabled:hover:border-divider transition"
+      >
+        <Undo2 className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={redo}
+        disabled={!canRedo}
+        title="Redo"
+        className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-divider text-ink/70 hover:border-primary/40 disabled:opacity-30 disabled:hover:border-divider transition"
+      >
+        <Redo2 className="h-4 w-4" />
+      </button>
+    </div>
+  )
+}
+
 function VisualEditorTab() {
   const [pageKey, setPageKey] = useState('home')
 
@@ -737,7 +763,7 @@ function VisualEditorTab() {
             entrance animation on the right. Nothing is saved until you press Save Changes.
           </p>
 
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-6">
             {PREVIEW_PAGES.map(({ key, label }) => (
               <button
                 key={key}
@@ -750,6 +776,9 @@ function VisualEditorTab() {
                 {label}
               </button>
             ))}
+            <span className="ml-auto">
+              <UndoRedoControls />
+            </span>
           </div>
 
           <EditorPreviewFrame pageKey={pageKey} />

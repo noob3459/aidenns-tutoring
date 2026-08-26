@@ -458,6 +458,15 @@ begin
     raise exception 'slot_past_date';
   end if;
 
+  -- Same-day guard: a slot dated today but whose start_time has already
+  -- elapsed (in Pacific time) is rejected too — mirrors the same-day
+  -- filter in api/availability.js, so a slot list fetched moments before
+  -- its time passed can't still be submitted after the fact.
+  if v_slot.slot_date = v_today_pacific
+     and v_slot.start_time <= (now() at time zone 'America/Los_Angeles')::time then
+    raise exception 'slot_past_time';
+  end if;
+
   -- Closed-date guard — see the function-level comment above for why
   -- this is a real lock (insert-if-missing, then FOR UPDATE) rather than
   -- a plain read, and why that closes the race rather than merely
@@ -632,3 +641,21 @@ grant select, insert, delete on table public.admin_login_attempts to service_rol
 -- key, which lives exclusively in Vercel serverless function environment
 -- variables and is never sent to the client, can bypass RLS and touch
 -- this data — and even then, only within the explicit grants above.
+
+-- ---------------------------------------------------------------------
+-- site-images — Storage bucket for admin-uploaded Visual Editor images
+-- (hero background, protocol step photos, logo). Public-read so the
+-- uploaded URLs work directly in <img src> on the live site; uploads only
+-- ever happen server-side (api/admin/content.js, action: upload-image)
+-- via the service_role client, which bypasses storage.objects RLS the
+-- same way it bypasses RLS on every table above — there is no anon/public
+-- write path, only public read.
+-- ---------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('site-images', 'site-images', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Public read access for site-images" on storage.objects;
+create policy "Public read access for site-images"
+  on storage.objects for select
+  using (bucket_id = 'site-images');

@@ -5,6 +5,7 @@ import { ArrowRight, GraduationCap, ShieldCheck, Sigma, MapPin } from 'lucide-re
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 import Editable from '../components/editor/Editable.jsx'
+import CustomBlocks from '../components/editor/CustomBlocks.jsx'
 import { runAnimationPreset } from '../lib/animationPresets.js'
 import { fillGradeTemplate } from '../lib/grades.js'
 
@@ -38,6 +39,7 @@ function Profile() {
               key={i} id={`about.bioParagraphs.${i}.text`} as="p" contentPath={`about.bioParagraphs.${i}.text`}
               label={`Bio Paragraph ${i + 1}`}
               className="text-muted text-base sm:text-lg leading-relaxed"
+              deletableArrayPath="about.bioParagraphs" deletableIndex={i}
             >
               {g(para.text)}
             </Editable>
@@ -80,16 +82,17 @@ function Credentials() {
                 className="credential-card bg-white border border-divider rounded-4xl p-6 hover:border-primary/40 transition-all duration-500 shadow-sm"
               >
                 {Icon && <Icon className="h-6 w-6 text-primary mb-3" strokeWidth={1.8} />}
-                <Editable id={`about.credentials.${i}.title`} as="h3" contentPath={`about.credentials.${i}.title`} label={`Credential ${i + 1} Title`} className="font-display font-bold text-lg text-ink mb-1.5">
+                <Editable id={`about.credentials.${i}.title`} as="h3" contentPath={`about.credentials.${i}.title`} label={`Credential ${i + 1} Title`} className="font-display font-bold text-lg text-ink mb-1.5" deletableArrayPath="about.credentials" deletableIndex={i}>
                   {g(c.title)}
                 </Editable>
-                <Editable id={`about.credentials.${i}.text`} as="p" contentPath={`about.credentials.${i}.text`} label={`Credential ${i + 1} Text`} className="text-muted text-sm leading-relaxed">
+                <Editable id={`about.credentials.${i}.text`} as="p" contentPath={`about.credentials.${i}.text`} label={`Credential ${i + 1} Text`} className="text-muted text-sm leading-relaxed" deletableArrayPath="about.credentials" deletableIndex={i}>
                   {g(c.text)}
                 </Editable>
               </div>
             )
           })}
         </div>
+        <CustomBlocks sectionId="about.credentials" className="max-w-3xl mx-auto space-y-3 mb-12" />
 
         <div className="text-center">
           <Link to="/booking" className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-7 py-3.5 rounded-full shadow-xl shadow-primary/30">

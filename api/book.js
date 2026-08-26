@@ -109,6 +109,13 @@ export default async function handler(req, res) {
         conflict: true,
       })
     }
+    if (claimError.message?.includes('slot_past_time')) {
+      return res.status(409).json({
+        ok: false,
+        error: 'That time has already passed today. Please pick a later time.',
+        conflict: true,
+      })
+    }
     // Defense-in-depth validation inside the DB function rejected
     // something (invalid_grade, invalid_format, invalid_email, etc).
     // This shouldn't happen in normal use since validateBooking() above

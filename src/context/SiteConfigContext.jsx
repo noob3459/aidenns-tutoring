@@ -18,6 +18,7 @@ export const DEFAULT_CONFIG = {
     line1: 'Premium Math Tutoring.',
     line2: 'Always Free.',
     subtext: 'One-on-one {grades} math tutoring from a certified educator, online or in person. No tuition, no hidden fees, ever.',
+    imageUrl: '/images/hero-image-v2.png',
     pillPrefix: '$0',
     pillText: 'per session, every session, forever.',
     scrollLabel: 'Scroll',
@@ -79,6 +80,7 @@ export const DEFAULT_CONFIG = {
     privacyLabel: 'Privacy',
     termsLabel: 'Terms',
     copyrightText: '© 2026 Aidenn’s Tutoring',
+    logoUrl: '/images/aidenns-tutoring-logo-premium.png',
     programLinks: [
       { label: 'Approach' },
       { label: 'About' },
@@ -98,6 +100,7 @@ export const DEFAULT_CONFIG = {
     brandText: 'Aidenn’s Tutoring',
     freeBadgeText: '100% Free',
     ctaLabel: 'Book a Free Session',
+    logoUrl: '/images/aidenns-tutoring-logo-mark.png',
     navLinks: [
       { label: 'Home' },
       { label: 'Services' },
@@ -153,16 +156,19 @@ export const DEFAULT_CONFIG = {
         title: 'Share Your Goals', tagline: 'Two minutes, that’s it.',
         text: 'Tell us your student’s grade and where they’re stuck: fractions, word problems, algebra, anything. No cost, no obligation, no catch.',
         meta: 'Step 1 / Listen',
+        imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
       },
       {
         title: 'We Build a Plan', tagline: 'Made for your student.',
         text: 'A certified educator reviews the goals and designs a session plan targeting the exact skill gaps, matched to what’s being taught in class.',
         meta: 'Step 2 / Plan',
+        imageUrl: 'https://images.unsplash.com/photo-1509869175650-a1d97972541a?auto=format&fit=crop&w=1200&q=80',
       },
       {
         title: 'Start Free Sessions', tagline: 'Online or in person.',
         text: 'Meet on a recurring weekly slot that fits your family’s schedule. Every session is completely free, this week, next month, always.',
         meta: 'Step 3 / Learn',
+        imageUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=1200&q=80',
       },
     ],
     trustBadges: [
@@ -269,6 +275,7 @@ export const DEFAULT_CONFIG = {
     ],
   },
   elementStyles: {},
+  customBlocks: [],
 }
 
 function deepMerge(base, patch) {
@@ -282,11 +289,32 @@ function deepMerge(base, patch) {
   return out
 }
 
+// deepMerge always produces a new object reference for any top-level key
+// it actually touches, so reference inequality is a cheap, reliable way to
+// tell which top-level sections changed between two config snapshots —
+// used to keep dirtyKeys correct across undo/redo without a deep diff.
+function diffTopLevelKeys(a, b) {
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})])
+  const diff = []
+  for (const key of keys) {
+    if (a?.[key] !== b?.[key]) diff.push(key)
+  }
+  return diff
+}
+
+const HISTORY_LIMIT = 50
+
 const SiteConfigContext = createContext(null)
 
 export function SiteConfigProvider({ children }) {
   const [config, setConfig] = useState(DEFAULT_CONFIG)
   const [lastSaved, setLastSaved] = useState(null)
+  // Undo/redo + dirty-section tracking for the Visual Editor's local
+  // draft — unused (and harmless) on the real public site's own provider
+  // instance, since nothing there ever calls applyLocalPatch/undo/redo.
+  const [history, setHistory] = useState([])
+  const [future, setFuture] = useState([])
+  const [dirtyKeys, setDirtyKeys] = useState(() => new Set())
 
   useEffect(() => {
     let cancelled = false
@@ -318,6 +346,7 @@ export function SiteConfigProvider({ children }) {
       if (res.ok && data.ok && data.data) {
         setConfig((prev) => deepMerge(prev, data.data))
         setLastSaved(new Date())
+        setDirtyKeys(new Set())
         return { ok: true }
       }
       console.error('Failed to save settings:', data.error)
@@ -333,13 +362,43 @@ export function SiteConfigProvider({ children }) {
   // Local-only merge, no network call — used by the Visual Editor's live
   // preview so edits render instantly while the admin is still deciding
   // whether to keep them. `updateConfig` (above) is what actually persists.
+  // Every local edit — text/color/font/animation, image replace, add/
+  // delete — goes through this one function, which is what lets undo/redo
+  // and dirty-tracking work for all of them without each call site having
+  // to remember to record history itself.
   const applyLocalPatch = (patch) => {
-    setConfig((prev) => deepMerge(prev, patch))
+    setHistory([...history, config].slice(-HISTORY_LIMIT))
+    setFuture([]) // a new edit invalidates whatever redo path existed
+    setDirtyKeys(new Set([...dirtyKeys, ...Object.keys(patch)]))
+    setConfig(deepMerge(config, patch))
+  }
+
+  const undo = () => {
+    if (!history.length) return
+    const prevConfig = history[history.length - 1]
+    setHistory(history.slice(0, -1))
+    setFuture([...future, config].slice(-HISTORY_LIMIT))
+    setDirtyKeys(new Set([...dirtyKeys, ...diffTopLevelKeys(prevConfig, config)]))
+    setConfig(prevConfig)
+  }
+
+  const redo = () => {
+    if (!future.length) return
+    const nextConfig = future[future.length - 1]
+    setFuture(future.slice(0, -1))
+    setHistory([...history, config].slice(-HISTORY_LIMIT))
+    setDirtyKeys(new Set([...dirtyKeys, ...diffTopLevelKeys(nextConfig, config)]))
+    setConfig(nextConfig)
   }
 
   const value = useMemo(
-    () => ({ config, updateConfig, applyLocalPatch, resetConfig, lastSaved }),
-    [config, lastSaved]
+    () => ({
+      config, updateConfig, applyLocalPatch, resetConfig, lastSaved,
+      undo, redo, canUndo: history.length > 0, canRedo: future.length > 0,
+      dirtyKeys,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [config, lastSaved, history, future, dirtyKeys]
   )
 
   return <SiteConfigContext.Provider value={value}>{children}</SiteConfigContext.Provider>

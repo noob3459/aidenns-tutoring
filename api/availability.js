@@ -2,7 +2,7 @@ import { getSupabaseAdmin } from './_lib/supabaseAdmin.js'
 import { noStore } from './_lib/adminAuth.js'
 import {
   getPacificTodayISO, getPacificCurrentMonth, addMonths,
-  isValidMonthISO, isValidDateISO, clampMonth,
+  isValidMonthISO, isValidDateISO, clampMonth, getPacificNowTimeString,
 } from './_lib/timezone.js'
 
 // Consolidates the two public availability endpoints (month view + a
@@ -67,8 +67,15 @@ async function getDateSlots(res, supabase, date) {
     return res.status(200).json({ slots: [] })
   }
 
+  // Same-day guard: `date < today` above only rules out past *days* —
+  // today's own slots still need today's already-elapsed times filtered
+  // out, or a family loading the page at 2pm could still pick 12pm.
+  const visibleSlots = date === today
+    ? (slots || []).filter((s) => s.start_time > getPacificNowTimeString())
+    : (slots || [])
+
   return res.status(200).json({
-    slots: (slots || []).map((s) => ({ id: s.id, time: formatTimeLabel(s.start_time) })),
+    slots: visibleSlots.map((s) => ({ id: s.id, time: formatTimeLabel(s.start_time) })),
   })
 }
 

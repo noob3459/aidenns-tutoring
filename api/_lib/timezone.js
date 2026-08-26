@@ -13,6 +13,15 @@ export function getPacificCurrentMonth() {
   return getPacificTodayISO().slice(0, 7)
 }
 
+// 'HH:MM:SS' (24-hour) for "now" in America/Los_Angeles — zero-padded so
+// it sorts/compares lexicographically the same way as the "HH:MM:SS"
+// strings Postgres returns for a `time` column (availability_slots.start_time).
+export function getPacificNowTimeString() {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: PACIFIC_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).format(new Date())
+}
+
 // 'YYYY-MM' + n months, wrapping year boundaries correctly.
 export function addMonths(monthISO, n) {
   const [y, m] = monthISO.split('-').map(Number)

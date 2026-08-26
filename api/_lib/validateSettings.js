@@ -18,24 +18,25 @@ const SCHEMA = {
     phone: 'string', phoneTel: 'string', email: 'string', donateEmail: 'string', serving: 'string', hours: 'string',
     phoneLabel: 'string', emailLabel: 'string', servingLabel: 'string', hoursLabel: 'string',
   },
-  hero: { eyebrow: 'string', line1: 'string', line2: 'string', subtext: 'string', pillPrefix: 'string', pillText: 'string', scrollLabel: 'string' },
+  hero: { eyebrow: 'string', line1: 'string', line2: 'string', subtext: 'string', pillPrefix: 'string', pillText: 'string', scrollLabel: 'string', imageUrl: { url: true } },
   footer: {
     tagline1: 'string', tagline2: 'string', blurb: 'string',
     communityLine: 'string', statusPillText: 'string', ctaLabel: 'string',
     aboutBlurb: 'string', servicesHeading: 'string', programHeading: 'string', contactHeading: 'string',
     donateLinkLabel: 'string', privacyLabel: 'string', termsLabel: 'string', copyrightText: 'string',
+    logoUrl: { url: true },
   },
   stats: {
     sessions: 'number', freePercent: 'number', replyHours: 'number',
     sessionsLabel: 'string', freePercentLabel: 'string', replyHoursLabel: 'string',
   },
-  navbar: { brandText: 'string', freeBadgeText: 'string', ctaLabel: 'string' },
+  navbar: { brandText: 'string', freeBadgeText: 'string', ctaLabel: 'string', logoUrl: { url: true } },
   donateBanner: { heading: 'string', description: 'string', ctaLabel: 'string' },
 }
 
 const ARRAY_SCHEMAS = {
   'home.featureCards': { eyebrow: 'string', heading: 'string', sub: 'string', text: 'string' },
-  'approach.protocolSteps': { title: 'string', tagline: 'string', text: 'string', meta: 'string' },
+  'approach.protocolSteps': { title: 'string', tagline: 'string', text: 'string', meta: 'string', imageUrl: { url: true } },
   'approach.trustBadges': { title: 'string', text: 'string' },
   'services.items': { title: 'string', text: 'string' },
   'navbar.navLinks': { label: 'string' },
@@ -48,6 +49,10 @@ const ARRAY_SCHEMAS = {
   'legal.privacyParagraphs': { text: 'string' },
   'legal.termsParagraphs': { text: 'string' },
 }
+
+const CUSTOM_BLOCK_ID_RE = /^[a-zA-Z0-9-]{1,60}$/
+const CUSTOM_BLOCKS_MAX = 50
+const CUSTOM_BLOCK_SCHEMA = { id: 'string', sectionId: 'string', text: 'string' }
 
 const SIMPLE_SECTION_SCHEMAS = {
   'home.finalCta': { heading1: 'string', heading2: 'string', ctaLabel: 'string' },
@@ -83,9 +88,23 @@ function validateNumberField(value, path, errors) {
   return n
 }
 
-// `type` is 'string', 'number', or `{ enum: [...] }` for a fixed set of
-// allowed literal values (e.g. grade labels) — used by both
-// `validateObjectAgainstSchema` and `validateSection`'s simple fields.
+// Empty string is a valid "no image set" state. A non-empty value must be
+// a plain http(s) URL — rejects javascript:/data: and anything else that
+// could end up in an <img src> unexpectedly, even though React already
+// doesn't execute string attribute values as script.
+function validateUrlField(value, path, errors) {
+  if (typeof value !== 'string') { errors.push(`${path} must be a string.`); return null }
+  const trimmed = value.trim()
+  if (trimmed === '') return ''
+  if (trimmed.length > STRING_FIELD_MAX) { errors.push(`${path} is too long.`); return null }
+  if (!/^https?:\/\//i.test(trimmed)) { errors.push(`${path} must be a valid http(s) URL.`); return null }
+  return trimmed
+}
+
+// `type` is 'string', 'number', `{ enum: [...] }` for a fixed set of
+// allowed literal values (e.g. grade labels), or `{ url: true }` for an
+// image URL field — used by both `validateObjectAgainstSchema` and
+// `validateSection`'s simple fields.
 function validateSimpleField(value, type, path, errors) {
   if (type === 'string') return validateStringField(value, path, errors)
   if (type === 'number') return validateNumberField(value, path, errors)
@@ -93,6 +112,7 @@ function validateSimpleField(value, type, path, errors) {
     if (!type.enum.includes(value)) { errors.push(`${path} must be one of ${type.enum.join(', ')}.`); return null }
     return value
   }
+  if (type && type.url) return validateUrlField(value, path, errors)
   errors.push(`${path} has an unrecognized field type.`)
   return null
 }
@@ -115,10 +135,35 @@ function validateObjectAgainstSchema(obj, schema, pathPrefix, errors) {
 // deepMerge (client and server) replaces arrays wholesale rather than
 // merging element-by-element, so any patch touching an array field is
 // expected to carry the complete array — validated as a whole here too.
-function validateArrayField(value, itemSchema, path, errors) {
+function validateArrayField(value, itemSchema, path, errors, maxLen = ARRAY_FIELD_MAX) {
   if (!Array.isArray(value)) { errors.push(`${path} must be an array.`); return null }
-  if (value.length > ARRAY_FIELD_MAX) { errors.push(`${path} has too many items (max ${ARRAY_FIELD_MAX}).`); return null }
+  if (value.length > maxLen) { errors.push(`${path} has too many items (max ${maxLen}).`); return null }
   return value.map((item, i) => validateObjectAgainstSchema(item, itemSchema, `${path}.${i}`, errors))
+}
+
+// customBlocks is admin-authored content, not a fixed schema section — a
+// plain array (replaces wholesale like every other array here, which is
+// exactly what makes deleting a block a simple "resend the array minus
+// one entry"), capped higher than the default since it's the one
+// genuinely open-ended list of content on the site. Each id must be
+// unique and safe to use as a DOM attribute value / dot-path segment.
+function validateCustomBlocks(value, errors) {
+  const clean = validateArrayField(value, CUSTOM_BLOCK_SCHEMA, 'customBlocks', errors, CUSTOM_BLOCKS_MAX)
+  if (!clean) return clean
+
+  const seen = new Set()
+  for (let i = 0; i < clean.length; i++) {
+    const block = clean[i]
+    if (!block) continue
+    const path = `customBlocks.${i}`
+    if (typeof block.id !== 'string' || !CUSTOM_BLOCK_ID_RE.test(block.id)) {
+      errors.push(`${path}.id must be a short alphanumeric/hyphen id.`)
+      continue
+    }
+    if (seen.has(block.id)) { errors.push(`${path}.id is a duplicate: ${block.id}.`); continue }
+    seen.add(block.id)
+  }
+  return clean
 }
 
 // A compound top-level section: some plain string/number fields, some
@@ -225,7 +270,7 @@ export function validateSettings(body, rawBodyLength) {
   const allowedTopLevel = [
     'contact', 'hero', 'pages', 'footer', 'stats',
     'navbar', 'donateBanner', 'home', 'approach', 'services', 'booking', 'about', 'legal',
-    'elementStyles',
+    'elementStyles', 'customBlocks',
   ]
   const unknownTop = Object.keys(body).filter((k) => !allowedTopLevel.includes(k))
   if (unknownTop.length) errors.push(`Unknown top-level field(s): ${unknownTop.join(', ')}.`)
@@ -336,6 +381,10 @@ export function validateSettings(body, rawBodyLength) {
 
   if (body.elementStyles !== undefined) {
     clean.elementStyles = validateElementStyles(body.elementStyles, errors)
+  }
+
+  if (body.customBlocks !== undefined) {
+    clean.customBlocks = validateCustomBlocks(body.customBlocks, errors)
   }
 
   return { errors, clean: errors.length ? null : clean }
