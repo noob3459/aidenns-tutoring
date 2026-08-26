@@ -42,9 +42,9 @@ function ServicesGrid() {
                   <div className="h-12 w-12 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center group-hover:bg-accent group-hover:scale-110 transition-all duration-500">
                     {Icon && <Icon className="h-5 w-5 text-accent group-hover:text-deep" strokeWidth={2} />}
                   </div>
-                  <span className="font-mono text-[9px] font-semibold uppercase tracking-widest text-accent bg-accent/15 border border-accent/30 rounded-full px-2.5 py-1">
-                    Free
-                  </span>
+                  <Editable id="services.badgeText" as="span" contentPath="services.badgeText" label="Services Badge Text" className="font-mono text-[9px] font-semibold uppercase tracking-widest text-accent bg-accent/15 border border-accent/30 rounded-full px-2.5 py-1">
+                    {config.services.badgeText}
+                  </Editable>
                 </div>
                 <Editable id={`services.items.${i}.title`} as="h3" contentPath={`services.items.${i}.title`} label={`Service ${i + 1} Title`} className="font-display font-bold text-xl sm:text-2xl mb-3">
                   {svc.title}

@@ -5,20 +5,24 @@ import {
 } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import { getPacificCurrentMonth, formatDayLabel } from '../lib/timezone.js'
+import { gradeRange } from '../lib/grades.js'
 import MonthCalendar from './MonthCalendar.jsx'
 import Field from './Field.jsx'
 import Editable from './editor/Editable.jsx'
 
-const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+const FORMAT_ICONS = { Online: Video, 'In-Person': MapPin }
 
 export default function BookingWizard() {
   const { config } = useSiteConfig()
   const { contact } = config
   const bookingSteps = config.booking.steps
+  const b = config.booking
+  const GRADES = gradeRange(b.minGrade, b.maxGrade)
 
   const [step, setStep] = useState(1)
   const [status, setStatus] = useState('idle') // 'idle' | 'sending' | 'sent' | 'error'
-  const [errorMessage, setErrorMessage] = useState('')
+  const [errorKind, setErrorKind] = useState(null) // 'conflict' | 'generic' | 'network' | 'unexpected' | null
+  const [serverErrorMessage, setServerErrorMessage] = useState('')
   const [form, setForm] = useState({
     grade: '', format: '', dateISO: '', dayLabel: '', slotId: '', timeLabel: '',
     parentName: '', studentName: '', email: '', phone: '', notes: '',
@@ -31,6 +35,8 @@ export default function BookingWizard() {
   const [monthLoading, setMonthLoading] = useState(false)
   const [slots, setSlots] = useState([])
   const [slotsLoading, setSlotsLoading] = useState(false)
+
+  const errorMessage = serverErrorMessage || b.errors[errorKind] || ''
 
   useEffect(() => {
     let cancelled = false
@@ -67,7 +73,8 @@ export default function BookingWizard() {
   const onSubmit = async (e) => {
     e.preventDefault()
     setStatus('sending')
-    setErrorMessage('')
+    setErrorKind(null)
+    setServerErrorMessage('')
 
     try {
       const res = await fetch('/api/book', {
@@ -91,11 +98,12 @@ export default function BookingWizard() {
         }),
       })
 
-      const result = await res.json().catch(() => ({ ok: false, error: 'Unexpected server response.' }))
+      const result = await res.json().catch(() => ({ ok: false, error: null, unexpected: true }))
 
       if (!res.ok || !result.ok) {
         if (result.conflict) {
-          setErrorMessage('That time slot was just taken by another family. Please choose a different time.')
+          setErrorKind('conflict')
+          setServerErrorMessage('')
           setStatus('error')
           setStep(3)
           selectDate(form.dateISO) // refresh the slot list so the taken one disappears
@@ -103,24 +111,27 @@ export default function BookingWizard() {
           update('timeLabel', '')
           return
         }
-        setErrorMessage(result.error || 'Something went wrong sending your request. Please try again.')
+        if (result.unexpected) {
+          setErrorKind('unexpected')
+          setServerErrorMessage('')
+        } else if (result.error) {
+          setServerErrorMessage(result.error)
+        } else {
+          setErrorKind('generic')
+        }
         setStatus('error')
         return
       }
 
       setStatus('sent')
     } catch {
-      setErrorMessage('Couldn’t reach the server. Check your connection and try again.')
+      setErrorKind('network')
+      setServerErrorMessage('')
       setStatus('error')
     }
   }
 
-  const steps = [
-    { n: 1, label: 'Grade' },
-    { n: 2, label: 'Format' },
-    { n: 3, label: 'Time' },
-    { n: 4, label: 'Details' },
-  ]
+  const stepIndicator = b.stepIndicatorLabels.map((s, i) => ({ n: i + 1, label: s.label }))
 
   return (
     <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12">
@@ -139,7 +150,9 @@ export default function BookingWizard() {
               <Phone className="h-4.5 w-4.5 text-primary" strokeWidth={2} />
             </span>
             <div>
-              <p className="text-xs font-mono uppercase tracking-widest text-muted">Call or text</p>
+              <Editable id="contact.phoneLabel" as="p" contentPath="contact.phoneLabel" label="Contact Phone Label" className="text-xs font-mono uppercase tracking-widest text-muted">
+                {contact.phoneLabel}
+              </Editable>
               <a href={`tel:${contact.phoneTel}`} className="text-ink font-medium hover:text-primary transition">{contact.phone}</a>
             </div>
           </div>
@@ -148,7 +161,9 @@ export default function BookingWizard() {
               <Mail className="h-4.5 w-4.5 text-primary" strokeWidth={2} />
             </span>
             <div>
-              <p className="text-xs font-mono uppercase tracking-widest text-muted">Email</p>
+              <Editable id="contact.emailLabel" as="p" contentPath="contact.emailLabel" label="Contact Email Label" className="text-xs font-mono uppercase tracking-widest text-muted">
+                {contact.emailLabel}
+              </Editable>
               <a href={`mailto:${contact.email}`} className="text-ink font-medium hover:text-primary transition">{contact.email}</a>
             </div>
           </div>
@@ -157,7 +172,9 @@ export default function BookingWizard() {
               <MapPin className="h-4.5 w-4.5 text-primary" strokeWidth={2} />
             </span>
             <div>
-              <p className="text-xs font-mono uppercase tracking-widest text-muted">Serving</p>
+              <Editable id="contact.servingLabel" as="p" contentPath="contact.servingLabel" label="Contact Serving Label" className="text-xs font-mono uppercase tracking-widest text-muted">
+                {contact.servingLabel}
+              </Editable>
               <p className="text-ink font-medium">{contact.serving}</p>
             </div>
           </div>
@@ -165,7 +182,7 @@ export default function BookingWizard() {
 
         <div className="mt-10 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-2 text-sm text-accent-dark font-medium">
           <ShieldCheck className="h-4 w-4" strokeWidth={2} />
-          100% free, no card required, ever.
+          <Editable id="booking.freeNote" as="span" contentPath="booking.freeNote" label="Booking Free Note">{b.freeNote}</Editable>
         </div>
       </div>
 
@@ -177,29 +194,44 @@ export default function BookingWizard() {
               <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500" strokeWidth={2} />
               </span>
-              <h3 className="font-display font-bold text-2xl sm:text-3xl text-ink mt-6">Request received!</h3>
+              <Editable id="booking.confirmation.heading" as="h3" contentPath="booking.confirmation.heading" label="Confirmation Heading" className="font-display font-bold text-2xl sm:text-3xl text-ink mt-6">
+                {b.confirmation.heading}
+              </Editable>
               <p className="text-muted mt-3 max-w-sm leading-relaxed">
-                Grade {form.grade} &middot; {form.format} &middot; {form.dayLabel}, {form.timeLabel}. A receipt is on its way to {form.email || 'your inbox'}.
+                Grade {form.grade} &middot; {form.format} &middot; {form.dayLabel}, {form.timeLabel}.{' '}
+                <Editable id="booking.confirmation.receiptPrefix" as="span" contentPath="booking.confirmation.receiptPrefix" label="Confirmation Receipt Prefix">
+                  {b.confirmation.receiptPrefix}
+                </Editable>{' '}
+                {form.email || (
+                  <Editable id="booking.confirmation.receiptFallback" as="span" contentPath="booking.confirmation.receiptFallback" label="Confirmation Receipt Fallback">
+                    {b.confirmation.receiptFallback}
+                  </Editable>
+                )}.
               </p>
               <div className="mt-4 max-w-sm rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-ink/80 leading-relaxed">
-                This is a <strong>request</strong>, not a confirmed booking yet. We personally review and confirm every session, and will reach out shortly.
+                <Editable id="booking.confirmation.notice" as="span" contentPath="booking.confirmation.notice" label="Confirmation Notice">
+                  {b.confirmation.notice}
+                </Editable>
               </div>
               <div className="mt-8 w-full rounded-3xl border border-accent/25 bg-accent/5 p-5 flex flex-col sm:flex-row items-center gap-4 justify-between">
-                <p className="text-sm text-ink/80 text-center sm:text-left">
-                  This session is completely free. If today helped, you can support the next family.
-                </p>
+                <Editable id="booking.confirmation.donatePrompt" as="p" contentPath="booking.confirmation.donatePrompt" label="Confirmation Donate Prompt" className="text-sm text-ink/80 text-center sm:text-left">
+                  {b.confirmation.donatePrompt}
+                </Editable>
                 <a
                   href={`mailto:${contact.donateEmail}?subject=I%27d%20like%20to%20donate`}
                   className="magnetic-btn shrink-0 inline-flex items-center gap-2 bg-accent text-white font-semibold px-5 py-2.5 rounded-full text-sm whitespace-nowrap"
                 >
-                  <Gift className="h-4 w-4" /> Donate
+                  <Gift className="h-4 w-4" />
+                  <Editable id="booking.confirmation.donateButtonLabel" as="span" contentPath="booking.confirmation.donateButtonLabel" label="Confirmation Donate Button">
+                    {b.confirmation.donateButtonLabel}
+                  </Editable>
                 </a>
               </div>
             </div>
           ) : (
             <>
               <div className="flex items-center mb-10">
-                {steps.map((s, i) => (
+                {stepIndicator.map((s, i) => (
                   <div key={s.n} className="flex items-center flex-1 last:flex-none">
                     <div className="flex flex-col items-center gap-1.5">
                       <span
@@ -209,9 +241,11 @@ export default function BookingWizard() {
                       >
                         {step > s.n ? <CheckCircle2 className="h-4 w-4" /> : s.n}
                       </span>
-                      <span className="font-mono text-[9px] uppercase tracking-widest text-muted hidden sm:block">{s.label}</span>
+                      <Editable id={`booking.stepIndicatorLabels.${i}.label`} as="span" contentPath={`booking.stepIndicatorLabels.${i}.label`} label={`Step Indicator ${i + 1} Label`} className="font-mono text-[9px] uppercase tracking-widest text-muted hidden sm:block">
+                        {s.label}
+                      </Editable>
                     </div>
-                    {i < steps.length - 1 && (
+                    {i < stepIndicator.length - 1 && (
                       <span className={`h-px flex-1 mx-2 transition-colors ${step > s.n ? 'bg-primary' : 'bg-divider'}`} />
                     )}
                   </div>
@@ -266,23 +300,27 @@ export default function BookingWizard() {
                       {bookingSteps[1].sub}
                     </Editable>
                     <div className="grid sm:grid-cols-2 gap-4">
-                      {[
-                        { key: 'Online', Icon: Video, desc: 'Live video call with a shared digital whiteboard.' },
-                        { key: 'In-Person', Icon: MapPin, desc: 'Meet at a local library or community space.' },
-                      ].map(({ key, Icon, desc }) => (
-                        <button
-                          type="button"
-                          key={key}
-                          onClick={() => update('format', key)}
-                          className={`text-left rounded-3xl border p-6 transition-all ${
-                            form.format === key ? 'border-primary bg-primary/5 shadow-md' : 'border-divider hover:border-primary/40'
-                          }`}
-                        >
-                          <Icon className={`h-6 w-6 mb-3 ${form.format === key ? 'text-primary' : 'text-muted'}`} strokeWidth={2} />
-                          <p className="font-display font-semibold text-ink">{key}</p>
-                          <p className="text-muted text-sm mt-1 leading-relaxed">{desc}</p>
-                        </button>
-                      ))}
+                      {b.formatOptions.map(({ label, text }, i) => {
+                        const Icon = FORMAT_ICONS[label] || Video
+                        return (
+                          <button
+                            type="button"
+                            key={label}
+                            onClick={() => update('format', label)}
+                            className={`text-left rounded-3xl border p-6 transition-all ${
+                              form.format === label ? 'border-primary bg-primary/5 shadow-md' : 'border-divider hover:border-primary/40'
+                            }`}
+                          >
+                            <Icon className={`h-6 w-6 mb-3 ${form.format === label ? 'text-primary' : 'text-muted'}`} strokeWidth={2} />
+                            <Editable id={`booking.formatOptions.${i}.label`} as="p" contentPath={`booking.formatOptions.${i}.label`} label={`Format Option ${i + 1} Label`} className="font-display font-semibold text-ink">
+                              {label}
+                            </Editable>
+                            <Editable id={`booking.formatOptions.${i}.text`} as="p" contentPath={`booking.formatOptions.${i}.text`} label={`Format Option ${i + 1} Text`} className="text-muted text-sm mt-1 leading-relaxed">
+                              {text}
+                            </Editable>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -311,16 +349,17 @@ export default function BookingWizard() {
                     {form.dateISO && (
                       <div className="mt-6">
                         <p className="font-mono text-[10px] uppercase tracking-widest text-muted mb-3">
-                          Open times &middot; {form.dayLabel}
+                          <Editable id="booking.openTimesPrefix" as="span" contentPath="booking.openTimesPrefix" label="Open Times Prefix">{b.openTimesPrefix}</Editable> &middot; {form.dayLabel}
                         </p>
                         {slotsLoading ? (
                           <div className="flex items-center gap-2 text-muted text-sm">
-                            <Loader2 className="h-4 w-4 animate-spin" /> Loading times&hellip;
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Editable id="booking.loadingTimesText" as="span" contentPath="booking.loadingTimesText" label="Loading Times Text">{b.loadingTimesText}</Editable>
                           </div>
                         ) : slots.length === 0 ? (
-                          <p className="text-muted text-sm bg-background border border-divider rounded-2xl p-4">
-                            No open times on this date. Please pick another day.
-                          </p>
+                          <Editable id="booking.noSlotsText" as="p" contentPath="booking.noSlotsText" label="No Slots Text" className="text-muted text-sm bg-background border border-divider rounded-2xl p-4">
+                            {b.noSlotsText}
+                          </Editable>
                         ) : (
                           <div className="flex flex-wrap gap-2.5">
                             {slots.map((s) => (
@@ -351,21 +390,21 @@ export default function BookingWizard() {
                       {bookingSteps[3].sub}
                     </Editable>
                     <div className="grid sm:grid-cols-2 gap-4">
-                      <Field label="Parent / Guardian Name">
+                      <Field label={<Editable id="booking.fieldLabels.parentName" as="span" contentPath="booking.fieldLabels.parentName" label="Parent Name Field Label">{b.fieldLabels.parentName}</Editable>}>
                         <input required value={form.parentName} onChange={(e) => update('parentName', e.target.value)} className="wizard-input" placeholder="Jamie Rivera" />
                       </Field>
-                      <Field label="Student's First Name">
+                      <Field label={<Editable id="booking.fieldLabels.studentName" as="span" contentPath="booking.fieldLabels.studentName" label="Student Name Field Label">{b.fieldLabels.studentName}</Editable>}>
                         <input required value={form.studentName} onChange={(e) => update('studentName', e.target.value)} className="wizard-input" placeholder="Sam" />
                       </Field>
-                      <Field label="Email">
+                      <Field label={<Editable id="booking.fieldLabels.email" as="span" contentPath="booking.fieldLabels.email" label="Email Field Label">{b.fieldLabels.email}</Editable>}>
                         <input required type="email" value={form.email} onChange={(e) => update('email', e.target.value)} className="wizard-input" placeholder="jamie@email.com" />
                       </Field>
-                      <Field label="Phone">
+                      <Field label={<Editable id="booking.fieldLabels.phone" as="span" contentPath="booking.fieldLabels.phone" label="Phone Field Label">{b.fieldLabels.phone}</Editable>}>
                         <input required type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} className="wizard-input" placeholder="(555) 000-0000" />
                       </Field>
                     </div>
                     <div className="mt-4">
-                      <Field label="Anything we should know? (optional)">
+                      <Field label={<Editable id="booking.fieldLabels.notes" as="span" contentPath="booking.fieldLabels.notes" label="Notes Field Label">{b.fieldLabels.notes}</Editable>}>
                         <textarea rows={3} value={form.notes} onChange={(e) => update('notes', e.target.value)} className="wizard-input resize-none" placeholder="e.g. struggling with fractions, needs a patient pace..." />
                       </Field>
                     </div>
@@ -386,7 +425,7 @@ export default function BookingWizard() {
                     onClick={() => { setStatus('idle'); setStep((s) => Math.max(1, s - 1)) }}
                     className={`inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition disabled:opacity-40 ${step === 1 ? 'invisible' : ''}`}
                   >
-                    <ChevronLeft className="h-4 w-4" /> Back
+                    <ChevronLeft className="h-4 w-4" /> {b.buttonLabels.back}
                   </button>
 
                   {step < 4 ? (
@@ -396,7 +435,7 @@ export default function BookingWizard() {
                       onClick={() => { setStatus('idle'); setStep((s) => Math.min(4, s + 1)) }}
                       className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-6 py-3 rounded-full disabled:opacity-40 disabled:pointer-events-none"
                     >
-                      Continue <ChevronRight className="h-4 w-4" />
+                      {b.buttonLabels.continueLabel} <ChevronRight className="h-4 w-4" />
                     </button>
                   ) : (
                     <button
@@ -406,12 +445,12 @@ export default function BookingWizard() {
                     >
                       {status === 'sending' ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" /> Sending Request…
+                          <Loader2 className="h-4 w-4 animate-spin" /> {b.buttonLabels.sending}
                         </>
                       ) : status === 'error' ? (
-                        <>Try Again <ChevronRight className="h-4 w-4" /></>
+                        <>{b.buttonLabels.tryAgain} <ChevronRight className="h-4 w-4" /></>
                       ) : (
-                        <>Request Free Session <ChevronRight className="h-4 w-4" /></>
+                        <>{b.buttonLabels.submit} <ChevronRight className="h-4 w-4" /></>
                       )}
                     </button>
                   )}

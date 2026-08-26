@@ -109,21 +109,25 @@ export default function Navbar() {
                   className="h-full w-full object-cover"
                 />
               </span>
-              <span className="font-display font-bold text-xl text-ink">{config.navbar.brandText}</span>
+              <Editable id="navbar.brandText" as="span" contentPath="navbar.brandText" label="Navbar Brand Text" className="font-display font-bold text-xl text-ink">
+                {config.navbar.brandText}
+              </Editable>
             </span>
             <button onClick={() => setOpen(false)} className="p-2 rounded-full bg-divider/40">
               <X className="h-5 w-5" />
             </button>
           </div>
           <div className="flex flex-col gap-1">
-            {navLinks.map((link) => (
+            {navLinks.map((link, i) => (
               <NavLink
                 key={link.href}
                 to={link.href}
                 onClick={() => setOpen(false)}
                 className="font-display text-3xl font-semibold text-ink py-3 border-b border-divider"
               >
-                {link.label}
+                <Editable id={`navbar.navLinks.${i}.label`} as="span" contentPath={`navbar.navLinks.${i}.label`} label={`Nav Link ${i + 1} Label`}>
+                  {link.label}
+                </Editable>
               </NavLink>
             ))}
           </div>
@@ -132,7 +136,9 @@ export default function Navbar() {
             onClick={() => setOpen(false)}
             className="mt-8 magnetic-btn flex items-center justify-center gap-2 bg-primary text-white px-6 py-4 rounded-full font-semibold w-full"
           >
-            {config.navbar.ctaLabel}
+            <Editable id="navbar.ctaLabel" as="span" contentPath="navbar.ctaLabel" label="Navbar CTA Button">
+              {config.navbar.ctaLabel}
+            </Editable>
             <ArrowUpRight className="h-4 w-4" />
           </Link>
         </div>

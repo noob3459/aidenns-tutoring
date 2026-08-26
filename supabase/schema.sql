@@ -112,7 +112,7 @@ values (1, '{
       { "text": "Outside of tutoring, I’m focused on keeping this program free forever, funded by donations instead of tuition." }
     ],
     "credentials": [
-      { "title": "Certified Educator", "text": "Trained and background-checked for child-safe, one-on-one tutoring." },
+      { "title": "Trusted by Many", "text": "Relied on by families across the community for safe, one-on-one tutoring." },
       { "title": "K-9 Math Specialist", "text": "Focused exclusively on K-9 math, from counting to Algebra I." },
       { "title": "Local & Online", "text": "In-person sessions in Rancho Cucamonga and Fontana, CA, plus online nationwide." }
     ]

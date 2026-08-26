@@ -9,6 +9,8 @@ import Approach from '../../pages/Approach.jsx'
 import AboutMe from '../../pages/AboutMe.jsx'
 import Contact from '../../pages/Contact.jsx'
 import Booking from '../../pages/Booking.jsx'
+import PrivacyPolicy from '../../pages/PrivacyPolicy.jsx'
+import Terms from '../../pages/Terms.jsx'
 
 export const PREVIEW_PAGES = [
   { key: 'home', label: 'Home', Component: Home },
@@ -17,6 +19,8 @@ export const PREVIEW_PAGES = [
   { key: 'about', label: 'About', Component: AboutMe },
   { key: 'contact', label: 'Contact', Component: Contact },
   { key: 'booking', label: 'Booking', Component: Booking },
+  { key: 'privacy', label: 'Privacy', Component: PrivacyPolicy },
+  { key: 'terms', label: 'Terms', Component: Terms },
 ]
 
 function ClickCaptureLayer({ children }) {

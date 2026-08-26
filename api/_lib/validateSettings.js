@@ -8,31 +8,55 @@ const ARRAY_FIELD_MAX = 12
 const PAGE_KEYS = ['services', 'approach', 'contact', 'booking', 'about']
 const PAGE_SCHEMA = { eyebrow: 'string', heading1: 'string', heading2: 'string', sub: 'string', ctaLabel: 'string', prompt: 'string' }
 
+// Mirrors src/lib/grades.js — kept as a separate constant since api/_lib
+// and src/lib are built independently (same convention already used by
+// api/_lib/timezone.js vs src/lib/timezone.js).
+const GRADE_VALUES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+
 const SCHEMA = {
-  contact: { phone: 'string', phoneTel: 'string', email: 'string', donateEmail: 'string', serving: 'string', hours: 'string' },
-  hero: { eyebrow: 'string', line1: 'string', line2: 'string', subtext: 'string' },
+  contact: {
+    phone: 'string', phoneTel: 'string', email: 'string', donateEmail: 'string', serving: 'string', hours: 'string',
+    phoneLabel: 'string', emailLabel: 'string', servingLabel: 'string', hoursLabel: 'string',
+  },
+  hero: { eyebrow: 'string', line1: 'string', line2: 'string', subtext: 'string', pillPrefix: 'string', pillText: 'string', scrollLabel: 'string' },
   footer: {
     tagline1: 'string', tagline2: 'string', blurb: 'string',
     communityLine: 'string', statusPillText: 'string', ctaLabel: 'string',
+    aboutBlurb: 'string', servicesHeading: 'string', programHeading: 'string', contactHeading: 'string',
+    donateLinkLabel: 'string', privacyLabel: 'string', termsLabel: 'string', copyrightText: 'string',
   },
-  stats: { sessions: 'number', freePercent: 'number', replyHours: 'number' },
+  stats: {
+    sessions: 'number', freePercent: 'number', replyHours: 'number',
+    sessionsLabel: 'string', freePercentLabel: 'string', replyHoursLabel: 'string',
+  },
   navbar: { brandText: 'string', freeBadgeText: 'string', ctaLabel: 'string' },
   donateBanner: { heading: 'string', description: 'string', ctaLabel: 'string' },
 }
 
 const ARRAY_SCHEMAS = {
   'home.featureCards': { eyebrow: 'string', heading: 'string', sub: 'string', text: 'string' },
-  'approach.protocolSteps': { title: 'string', tagline: 'string', text: 'string' },
+  'approach.protocolSteps': { title: 'string', tagline: 'string', text: 'string', meta: 'string' },
   'approach.trustBadges': { title: 'string', text: 'string' },
   'services.items': { title: 'string', text: 'string' },
   'navbar.navLinks': { label: 'string' },
   'booking.steps': { heading: 'string', sub: 'string' },
+  'booking.stepIndicatorLabels': { label: 'string' },
+  'booking.formatOptions': { label: 'string', text: 'string' },
   'about.bioParagraphs': { text: 'string' },
   'about.credentials': { title: 'string', text: 'string' },
+  'footer.programLinks': { label: 'string' },
+  'legal.privacyParagraphs': { text: 'string' },
+  'legal.termsParagraphs': { text: 'string' },
 }
 
 const SIMPLE_SECTION_SCHEMAS = {
   'home.finalCta': { heading1: 'string', heading2: 'string', ctaLabel: 'string' },
+  'home.featuresSection': { eyebrow: 'string', heading1: 'string', heading2: 'string' },
+  'approach.trustSignalsHeading': { eyebrow: 'string', heading: 'string' },
+  'booking.fieldLabels': { parentName: 'string', studentName: 'string', email: 'string', phone: 'string', notes: 'string' },
+  'booking.buttonLabels': { back: 'string', continueLabel: 'string', sending: 'string', tryAgain: 'string', submit: 'string' },
+  'booking.confirmation': { heading: 'string', receiptPrefix: 'string', receiptFallback: 'string', notice: 'string', donatePrompt: 'string', donateButtonLabel: 'string' },
+  'booking.errors': { conflict: 'string', generic: 'string', network: 'string', unexpected: 'string' },
 }
 
 const ELEMENT_STYLE_ID_RE = /^[a-zA-Z0-9_.-]{1,120}$/
@@ -59,6 +83,20 @@ function validateNumberField(value, path, errors) {
   return n
 }
 
+// `type` is 'string', 'number', or `{ enum: [...] }` for a fixed set of
+// allowed literal values (e.g. grade labels) — used by both
+// `validateObjectAgainstSchema` and `validateSection`'s simple fields.
+function validateSimpleField(value, type, path, errors) {
+  if (type === 'string') return validateStringField(value, path, errors)
+  if (type === 'number') return validateNumberField(value, path, errors)
+  if (type && Array.isArray(type.enum)) {
+    if (!type.enum.includes(value)) { errors.push(`${path} must be one of ${type.enum.join(', ')}.`); return null }
+    return value
+  }
+  errors.push(`${path} has an unrecognized field type.`)
+  return null
+}
+
 function validateObjectAgainstSchema(obj, schema, pathPrefix, errors) {
   if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
     errors.push(`${pathPrefix} must be an object.`)
@@ -69,11 +107,7 @@ function validateObjectAgainstSchema(obj, schema, pathPrefix, errors) {
 
   const clean = {}
   for (const key of Object.keys(schema)) {
-    const path = `${pathPrefix}.${key}`
-    const type = schema[key]
-    const value = obj[key]
-    if (type === 'string') clean[key] = validateStringField(value, path, errors)
-    else if (type === 'number') clean[key] = validateNumberField(value, path, errors)
+    clean[key] = validateSimpleField(obj[key], schema[key], `${pathPrefix}.${key}`, errors)
   }
   return clean
 }
@@ -105,10 +139,7 @@ function validateSection(obj, { simple = {}, arrays = {}, objects = {} }, pathPr
 
   const clean = {}
   for (const key of Object.keys(simple)) {
-    const path = `${pathPrefix}.${key}`
-    clean[key] = simple[key] === 'string'
-      ? validateStringField(obj[key], path, errors)
-      : validateNumberField(obj[key], path, errors)
+    clean[key] = validateSimpleField(obj[key], simple[key], `${pathPrefix}.${key}`, errors)
   }
   for (const key of Object.keys(arrays)) {
     clean[key] = validateArrayField(obj[key], arrays[key], `${pathPrefix}.${key}`, errors)
@@ -193,7 +224,7 @@ export function validateSettings(body, rawBodyLength) {
 
   const allowedTopLevel = [
     'contact', 'hero', 'pages', 'footer', 'stats',
-    'navbar', 'donateBanner', 'home', 'approach', 'services', 'booking', 'about',
+    'navbar', 'donateBanner', 'home', 'approach', 'services', 'booking', 'about', 'legal',
     'elementStyles',
   ]
   const unknownTop = Object.keys(body).filter((k) => !allowedTopLevel.includes(k))
@@ -226,21 +257,27 @@ export function validateSettings(body, rawBodyLength) {
     clean.home = validateSection(body.home, {
       simple: { heroCtaLabel: 'string' },
       arrays: { featureCards: ARRAY_SCHEMAS['home.featureCards'] },
-      objects: { finalCta: SIMPLE_SECTION_SCHEMAS['home.finalCta'] },
+      objects: {
+        finalCta: SIMPLE_SECTION_SCHEMAS['home.finalCta'],
+        featuresSection: SIMPLE_SECTION_SCHEMAS['home.featuresSection'],
+      },
     }, 'home', errors)
   }
 
   if (body.approach !== undefined) {
     clean.approach = validateSection(body.approach, {
+      simple: { protocolPillText: 'string', stepLabelPrefix: 'string', stepFooterSuffix: 'string' },
       arrays: {
         protocolSteps: ARRAY_SCHEMAS['approach.protocolSteps'],
         trustBadges: ARRAY_SCHEMAS['approach.trustBadges'],
       },
+      objects: { trustSignalsHeading: SIMPLE_SECTION_SCHEMAS['approach.trustSignalsHeading'] },
     }, 'approach', errors)
   }
 
   if (body.services !== undefined) {
     clean.services = validateSection(body.services, {
+      simple: { badgeText: 'string' },
       arrays: { items: ARRAY_SCHEMAS['services.items'] },
     }, 'services', errors)
   }
@@ -252,10 +289,39 @@ export function validateSettings(body, rawBodyLength) {
     }, 'navbar', errors)
   }
 
+  if (body.legal !== undefined) {
+    clean.legal = validateSection(body.legal, {
+      simple: { privacyHeading: 'string', termsHeading: 'string' },
+      arrays: {
+        privacyParagraphs: ARRAY_SCHEMAS['legal.privacyParagraphs'],
+        termsParagraphs: ARRAY_SCHEMAS['legal.termsParagraphs'],
+      },
+    }, 'legal', errors)
+  }
+
   if (body.booking !== undefined) {
     clean.booking = validateSection(body.booking, {
-      arrays: { steps: ARRAY_SCHEMAS['booking.steps'] },
+      simple: {
+        minGrade: { enum: GRADE_VALUES }, maxGrade: { enum: GRADE_VALUES },
+        freeNote: 'string', openTimesPrefix: 'string', loadingTimesText: 'string', noSlotsText: 'string',
+      },
+      arrays: {
+        steps: ARRAY_SCHEMAS['booking.steps'],
+        stepIndicatorLabels: ARRAY_SCHEMAS['booking.stepIndicatorLabels'],
+        formatOptions: ARRAY_SCHEMAS['booking.formatOptions'],
+      },
+      objects: {
+        fieldLabels: SIMPLE_SECTION_SCHEMAS['booking.fieldLabels'],
+        buttonLabels: SIMPLE_SECTION_SCHEMAS['booking.buttonLabels'],
+        confirmation: SIMPLE_SECTION_SCHEMAS['booking.confirmation'],
+        errors: SIMPLE_SECTION_SCHEMAS['booking.errors'],
+      },
     }, 'booking', errors)
+    if (clean.booking && clean.booking.minGrade && clean.booking.maxGrade) {
+      const minIdx = GRADE_VALUES.indexOf(clean.booking.minGrade)
+      const maxIdx = GRADE_VALUES.indexOf(clean.booking.maxGrade)
+      if (maxIdx < minIdx) errors.push('booking.maxGrade must be at or after booking.minGrade.')
+    }
   }
 
   if (body.about !== undefined) {

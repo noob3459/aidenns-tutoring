@@ -7,12 +7,12 @@ import PageHeader from '../components/PageHeader.jsx'
 import Editable from '../components/editor/Editable.jsx'
 import { runAnimationPreset } from '../lib/animationPresets.js'
 
-// Images/alt text/meta labels stay static (not text-editable in v1) —
-// only title/tagline/text per step are config-driven.
+// Images/alt text stay static (not text-editable in v1) — title/tagline/
+// text/meta per step are config-driven.
 const PROTOCOL_MEDIA = [
-  { image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80', alt: 'Parent filling out a form with a notebook', meta: 'Step 1 / Listen' },
-  { image: 'https://images.unsplash.com/photo-1509869175650-a1d97972541a?auto=format&fit=crop&w=1200&q=80', alt: 'Notebook with math equations and a pencil', meta: 'Step 2 / Plan' },
-  { image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=1200&q=80', alt: 'Student and tutor working together', meta: 'Step 3 / Learn' },
+  { image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80', alt: 'Parent filling out a form with a notebook' },
+  { image: 'https://images.unsplash.com/photo-1509869175650-a1d97972541a?auto=format&fit=crop&w=1200&q=80', alt: 'Notebook with math equations and a pencil' },
+  { image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=1200&q=80', alt: 'Student and tutor working together' },
 ]
 
 const TRUST_ICONS = [Star, TrendingUp, ShieldCheck]
@@ -60,10 +60,12 @@ function Protocol() {
               <div className="grid lg:grid-cols-5 gap-0 min-h-[55vh] lg:min-h-[62vh]">
                 <div className="lg:col-span-3 p-8 sm:p-12 lg:p-16 flex flex-col justify-between">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs uppercase tracking-[0.25em] text-muted">{media.meta}</span>
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-primary-dark bg-primary/10 px-2.5 py-1 rounded-full">
-                      Aidenn&rsquo;s Protocol
-                    </span>
+                    <Editable id={`approach.protocolSteps.${idx}.meta`} as="span" contentPath={`approach.protocolSteps.${idx}.meta`} label={`Protocol Step ${idx + 1} Meta Label`} className="font-mono text-xs uppercase tracking-[0.25em] text-muted">
+                      {step.meta}
+                    </Editable>
+                    <Editable id="approach.protocolPillText" as="span" contentPath="approach.protocolPillText" label="Protocol Pill Text" className="font-mono text-[10px] uppercase tracking-widest text-primary-dark bg-primary/10 px-2.5 py-1 rounded-full">
+                      {config.approach.protocolPillText}
+                    </Editable>
                   </div>
 
                   <div className="my-12">
@@ -98,9 +100,15 @@ function Protocol() {
                   <div className="absolute inset-0 bg-gradient-to-t from-deep/60 via-transparent to-deep/15" />
                   <div className="absolute top-5 left-5 flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full pl-3 pr-4 py-1.5 shadow-lg">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-ink">Step {num}</span>
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-ink">
+                      <Editable id="approach.stepLabelPrefix" as="span" contentPath="approach.stepLabelPrefix" label="Protocol Step Label Prefix">
+                        {config.approach.stepLabelPrefix}
+                      </Editable> {num}
+                    </span>
                   </div>
-                  <div className="absolute bottom-4 right-4 font-mono text-[10px] uppercase tracking-widest text-white/70">{num} / Aidenn&rsquo;s Tutoring</div>
+                  <div className="absolute bottom-4 right-4 font-mono text-[10px] uppercase tracking-widest text-white/70">
+                    {num} / <Editable id="approach.stepFooterSuffix" as="span" contentPath="approach.stepFooterSuffix" label="Protocol Step Footer Suffix">{config.approach.stepFooterSuffix}</Editable>
+                  </div>
                 </div>
               </div>
             </article>
@@ -133,8 +141,12 @@ function TrustSignals() {
     <section ref={ref} className="relative py-20 sm:py-28 px-6">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <span className="font-mono text-xs uppercase tracking-[0.25em] text-primary-dark">╱ Why Families Trust Us</span>
-          <h2 className="font-display font-extrabold text-3xl sm:text-4xl md:text-5xl text-ink mt-3 tracking-tight">More than free.</h2>
+          <Editable id="approach.trustSignalsHeading.eyebrow" as="span" contentPath="approach.trustSignalsHeading.eyebrow" label="Trust Signals Eyebrow" className="font-mono text-xs uppercase tracking-[0.25em] text-primary-dark">
+            {config.approach.trustSignalsHeading.eyebrow}
+          </Editable>
+          <Editable id="approach.trustSignalsHeading.heading" as="h2" contentPath="approach.trustSignalsHeading.heading" label="Trust Signals Heading" className="font-display font-extrabold text-3xl sm:text-4xl md:text-5xl text-ink mt-3 tracking-tight">
+            {config.approach.trustSignalsHeading.heading}
+          </Editable>
         </div>
 
         <div data-editor-id="approach.trustSignals.badges" data-editor-kind="section" data-editor-label="Trust Badges (Animation)" className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">

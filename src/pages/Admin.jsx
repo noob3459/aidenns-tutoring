@@ -11,6 +11,7 @@ import MonthCalendar from '../components/MonthCalendar.jsx'
 import EditorPreviewFrame, { PREVIEW_PAGES } from '../components/editor/EditorPreviewFrame.jsx'
 import EditorSidePanel from '../components/editor/EditorSidePanel.jsx'
 import { getPacificCurrentMonth, getPacificTodayISO, formatDayLabel, isValidDateISO } from '../lib/timezone.js'
+import { ALL_GRADES } from '../lib/grades.js'
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -563,10 +564,16 @@ function ContentTab({ config, updateConfig }) {
   const [pages, setPages] = useState(config.pages)
   const [footer, setFooter] = useState(config.footer)
   const [stats, setStats] = useState(config.stats)
+  const [booking, setBooking] = useState(config.booking)
   const [saved, setSaved] = useState(false)
 
   const setPageField = (page, key, value) => {
     setPages((prev) => ({ ...prev, [page]: { ...prev[page], [key]: value } }))
+    setSaved(false)
+  }
+
+  const setGrade = (key, value) => {
+    setBooking((prev) => ({ ...prev, [key]: value }))
     setSaved(false)
   }
 
@@ -575,7 +582,7 @@ function ContentTab({ config, updateConfig }) {
       sessions: Number(stats.sessions) || 0,
       freePercent: Number(stats.freePercent) || 0,
       replyHours: Number(stats.replyHours) || 0,
-    } })
+    }, booking })
     setSaved(true)
   }
 
@@ -622,12 +629,31 @@ function ContentTab({ config, updateConfig }) {
         </div>
       </div>
 
-      <div className="mb-2">
+      <div className="mb-8">
         <p className="text-xs font-mono uppercase tracking-widest text-primary-dark mb-3">Stats Strip</p>
         <div className="grid sm:grid-cols-3 gap-4">
           <Input label="Sessions taught" type="number" value={stats.sessions} onChange={(e) => { setStats({ ...stats, sessions: e.target.value }); setSaved(false) }} />
           <Input label="Free percent" type="number" value={stats.freePercent} onChange={(e) => { setStats({ ...stats, freePercent: e.target.value }); setSaved(false) }} />
           <Input label="Avg. reply (hrs)" type="number" value={stats.replyHours} onChange={(e) => { setStats({ ...stats, replyHours: e.target.value }); setSaved(false) }} />
+        </div>
+      </div>
+
+      <div className="mb-2">
+        <p className="text-xs font-mono uppercase tracking-widest text-primary-dark mb-3">Grades Served</p>
+        <p className="text-muted text-sm mb-3">Controls which grade buttons appear in step 1 of the booking wizard.</p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <label className="block">
+            <span className="block text-xs font-mono uppercase tracking-widest text-muted mb-2">Youngest grade</span>
+            <select value={booking.minGrade} onChange={(e) => setGrade('minGrade', e.target.value)} className="admin-input">
+              {ALL_GRADES.map((g) => <option key={g} value={g}>{g === 'K' ? 'Kindergarten' : `Grade ${g}`}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-mono uppercase tracking-widest text-muted mb-2">Oldest grade</span>
+            <select value={booking.maxGrade} onChange={(e) => setGrade('maxGrade', e.target.value)} className="admin-input">
+              {ALL_GRADES.map((g) => <option key={g} value={g}>{g === 'K' ? 'Kindergarten' : `Grade ${g}`}</option>)}
+            </select>
+          </label>
         </div>
       </div>
 

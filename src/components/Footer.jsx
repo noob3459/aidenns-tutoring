@@ -60,16 +60,18 @@ export default function Footer() {
                 onClick={handleLogoClick}
               />
             </div>
-            <p className="text-white/50 text-sm leading-relaxed max-w-xs">
-              Certified K-9 math tutoring for every family, no tuition, no hidden fees, ever.
-            </p>
+            <Editable id="footer.aboutBlurb" as="p" contentPath="footer.aboutBlurb" label="Footer About Blurb" className="text-white/50 text-sm leading-relaxed max-w-xs">
+              {footer.aboutBlurb}
+            </Editable>
             <Editable id="footer.communityLine" as="p" contentPath="footer.communityLine" label="Footer Community Line" className="font-mono text-[10px] uppercase tracking-widest text-white/30 mt-6">
               {footer.communityLine}
             </Editable>
           </div>
 
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent mb-4">Services</p>
+            <Editable id="footer.servicesHeading" as="p" contentPath="footer.servicesHeading" label="Footer Services Heading" className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent mb-4">
+              {footer.servicesHeading}
+            </Editable>
             <ul className="space-y-2.5">
               {config.services.items.slice(0, 4).map((s, i) => (
                 <li key={i}>
@@ -80,18 +82,38 @@ export default function Footer() {
           </div>
 
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent mb-4">Program</p>
+            <Editable id="footer.programHeading" as="p" contentPath="footer.programHeading" label="Footer Program Heading" className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent mb-4">
+              {footer.programHeading}
+            </Editable>
             <ul className="space-y-2.5">
-              <li><Link to="/approach" className="text-white/65 hover:text-accent transition text-sm">Approach</Link></li>
-              <li><Link to="/about" className="text-white/65 hover:text-accent transition text-sm">About</Link></li>
-              <li><Link to="/booking" className="text-white/65 hover:text-accent transition text-sm">Book a Session</Link></li>
-              <li><Link to="/contact" className="text-white/65 hover:text-accent transition text-sm">Contact</Link></li>
-              <li><a href={`mailto:${contact.donateEmail}?subject=I%27d%20like%20to%20donate`} className="text-white/65 hover:text-accent transition text-sm">Donate</a></li>
+              {[
+                { to: '/approach' },
+                { to: '/about' },
+                { to: '/booking' },
+                { to: '/contact' },
+              ].map(({ to }, i) => (
+                <li key={to}>
+                  <Link to={to} className="text-white/65 hover:text-accent transition text-sm">
+                    <Editable id={`footer.programLinks.${i}.label`} as="span" contentPath={`footer.programLinks.${i}.label`} label={`Footer Program Link ${i + 1}`}>
+                      {footer.programLinks[i].label}
+                    </Editable>
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <a href={`mailto:${contact.donateEmail}?subject=I%27d%20like%20to%20donate`} className="text-white/65 hover:text-accent transition text-sm">
+                  <Editable id="footer.donateLinkLabel" as="span" contentPath="footer.donateLinkLabel" label="Footer Donate Link">
+                    {footer.donateLinkLabel}
+                  </Editable>
+                </a>
+              </li>
             </ul>
           </div>
 
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent mb-4">Contact</p>
+            <Editable id="footer.contactHeading" as="p" contentPath="footer.contactHeading" label="Footer Contact Heading" className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent mb-4">
+              {footer.contactHeading}
+            </Editable>
             <ul className="space-y-2.5">
               <li><a href={`tel:${contact.phoneTel}`} className="text-white/65 hover:text-accent transition text-sm">{contact.phone}</a></li>
               <li><a href={`mailto:${contact.email}`} className="text-white/65 hover:text-accent transition text-sm">{contact.email}</a></li>
@@ -112,9 +134,13 @@ export default function Footer() {
           </div>
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-white/50 text-xs font-mono">
-            <Link to="/privacy" className="hover:text-accent transition">Privacy</Link>
-            <Link to="/terms" className="hover:text-accent transition">Terms</Link>
-            <span>&copy; 2026 Aidenn&rsquo;s Tutoring</span>
+            <Link to="/privacy" className="hover:text-accent transition">
+              <Editable id="footer.privacyLabel" as="span" contentPath="footer.privacyLabel" label="Footer Privacy Link">{footer.privacyLabel}</Editable>
+            </Link>
+            <Link to="/terms" className="hover:text-accent transition">
+              <Editable id="footer.termsLabel" as="span" contentPath="footer.termsLabel" label="Footer Terms Link">{footer.termsLabel}</Editable>
+            </Link>
+            <Editable id="footer.copyrightText" as="span" contentPath="footer.copyrightText" label="Footer Copyright Text">{footer.copyrightText}</Editable>
           </div>
         </div>
       </div>

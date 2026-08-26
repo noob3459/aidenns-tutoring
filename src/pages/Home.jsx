@@ -101,13 +101,19 @@ function Hero() {
           </div>
 
           <div className="hero-cta mt-8 inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md border border-white/15 px-5 py-2.5 text-white/90 text-sm">
-            <span className="font-serif italic text-accent text-lg leading-none">$0</span>
-            per session, every session, forever.
+            <Editable id="home.hero.pillPrefix" as="span" contentPath="hero.pillPrefix" label="Hero Pill Prefix" className="font-serif italic text-accent text-lg leading-none">
+              {config.hero.pillPrefix}
+            </Editable>
+            <Editable id="home.hero.pillText" as="span" contentPath="hero.pillText" label="Hero Pill Text">
+              {config.hero.pillText}
+            </Editable>
           </div>
         </div>
 
         <div className="absolute bottom-8 right-6 sm:right-12 hidden md:flex flex-col items-center gap-2 text-white/50">
-          <span className="font-mono uppercase text-[10px] tracking-[0.3em]">Scroll</span>
+          <Editable id="home.hero.scrollLabel" as="span" contentPath="hero.scrollLabel" label="Hero Scroll Label" className="font-mono uppercase text-[10px] tracking-[0.3em]">
+            {config.hero.scrollLabel}
+          </Editable>
           <div className="h-8 w-px bg-gradient-to-b from-white/50 to-transparent" />
         </div>
       </div>
@@ -120,6 +126,7 @@ function Features() {
   const sectionRef = useRef(null)
   const { config } = useSiteConfig()
   const cards = config.home.featureCards
+  const fs = config.home.featuresSection
 
   useEffect(() => {
     const style = config.elementStyles?.['home.features.cards'] || {}
@@ -142,10 +149,16 @@ function Features() {
     <section ref={sectionRef} className="relative py-28 sm:py-40 px-6 sm:px-10 lg:px-16">
       <div className="max-w-7xl mx-auto">
         <div data-editor-id="home.features.heading" data-editor-kind="section" data-editor-label="Features Heading (Animation)" className="feature-heading max-w-3xl mb-16 sm:mb-24">
-          <span className="font-mono text-xs uppercase tracking-[0.25em] text-primary-dark">╱ The Aidenn’s Tutoring Difference</span>
+          <Editable id="home.featuresSection.eyebrow" as="span" contentPath="home.featuresSection.eyebrow" label="Features Eyebrow" className="font-mono text-xs uppercase tracking-[0.25em] text-primary-dark">
+            {fs.eyebrow}
+          </Editable>
           <h2 className="font-display font-extrabold text-4xl sm:text-5xl md:text-6xl text-ink mt-4 leading-[1.05] tracking-tight">
-            Tutoring that
-            <span className="block font-serif italic font-medium text-primary-dark mt-1">actually fits.</span>
+            <Editable id="home.featuresSection.heading1" as="span" contentPath="home.featuresSection.heading1" label="Features Heading (Line 1)">
+              {fs.heading1}
+            </Editable>
+            <Editable id="home.featuresSection.heading2" as="span" contentPath="home.featuresSection.heading2" label="Features Heading (Line 2)" className="block font-serif italic font-medium text-primary-dark mt-1">
+              {fs.heading2}
+            </Editable>
           </h2>
         </div>
 
@@ -203,9 +216,9 @@ function StatsStrip() {
   }, [])
 
   const stats = [
-    { target: config.stats.sessions, suffix: '+', label: 'sessions taught' },
-    { target: config.stats.freePercent, suffix: '%', label: 'free, always' },
-    { target: config.stats.replyHours, suffix: ' hr', label: 'avg. reply time' },
+    { target: config.stats.sessions, suffix: '+', label: config.stats.sessionsLabel, contentPath: 'stats.sessionsLabel' },
+    { target: config.stats.freePercent, suffix: '%', label: config.stats.freePercentLabel, contentPath: 'stats.freePercentLabel' },
+    { target: config.stats.replyHours, suffix: ' hr', label: config.stats.replyHoursLabel, contentPath: 'stats.replyHoursLabel' },
   ]
 
   return (
@@ -224,7 +237,9 @@ function StatsStrip() {
               </span>
               <span className="font-serif italic font-medium text-2xl sm:text-3xl text-primary-dark mb-1">{s.suffix}</span>
             </div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary-dark mt-3">{s.label}</p>
+            <Editable id={`stats.${['sessionsLabel', 'freePercentLabel', 'replyHoursLabel'][i]}`} as="p" contentPath={s.contentPath} label={`Stat ${i + 1} Label`} className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary-dark mt-3">
+              {s.label}
+            </Editable>
           </div>
         ))}
       </div>
