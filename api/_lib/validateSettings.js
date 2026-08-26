@@ -287,10 +287,19 @@ export function validateSettings(body, rawBodyLength) {
 
   const clean = {}
 
-  for (const section of ['contact', 'hero', 'footer', 'stats', 'donateBanner']) {
+  for (const section of ['contact', 'hero', 'stats', 'donateBanner']) {
     if (body[section] !== undefined) {
       clean[section] = validateObjectAgainstSchema(body[section], SCHEMA[section], section, errors)
     }
+  }
+
+  // footer has an array sub-field (programLinks), so — like navbar below —
+  // it needs validateSection rather than the simple-schema loop above.
+  if (body.footer !== undefined) {
+    clean.footer = validateSection(body.footer, {
+      simple: SCHEMA.footer,
+      arrays: { programLinks: ARRAY_SCHEMAS['footer.programLinks'] },
+    }, 'footer', errors)
   }
 
   if (body.pages !== undefined) {
