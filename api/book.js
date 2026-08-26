@@ -121,13 +121,26 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'Something went wrong saving your request. Please try again.' })
   }
 
-  try {
-    await Promise.all([sendOwnerNotification(booking), sendParentReceipt(booking)])
-  } catch (mailErr) {
-    // The request is already saved in Supabase — don't fail the whole
-    // request just because an email hiccupped. Log it so it can be
-    // investigated, but still tell the parent it was received.
-    console.error('Email send failed:', mailErr)
+  // Two independent Resend sends. allSettled (not all) so one failing
+  // never blocks the other, and the booking is already saved in Supabase
+  // either way — an email hiccup never loses the request. Each outcome is
+  // logged with its Resend message ID (or the error) but never the
+  // booking's notes/phone or any secret.
+  const [ownerResult, receiptResult] = await Promise.allSettled([
+    sendOwnerNotification(booking),
+    sendParentReceipt(booking),
+  ])
+
+  if (ownerResult.status === 'fulfilled') {
+    console.log('Owner notification accepted', { bookingId: booking.id, messageId: ownerResult.value })
+  } else {
+    console.error('Owner notification failed', { bookingId: booking.id, error: ownerResult.reason?.message })
+  }
+
+  if (receiptResult.status === 'fulfilled') {
+    console.log('Customer receipt accepted', { bookingId: booking.id, messageId: receiptResult.value })
+  } else {
+    console.error('Customer receipt failed', { bookingId: booking.id, error: receiptResult.reason?.message })
   }
 
   return res.status(200).json({ ok: true, bookingId: booking.id })
