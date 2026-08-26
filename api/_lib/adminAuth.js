@@ -26,7 +26,7 @@ export function safeEquals(a, b) {
 // any file under /src, so it cannot end up in the client bundle. Rotate
 // by editing this constant directly (never via chat, never via an env
 // var, never logged) and redeploying.
-const ADMIN_PASSCODE = 'Matrix-6149-fe9587'
+const ADMIN_PASSCODE = 'Aidennq26'
 
 export function verifyPasscode(submitted) {
   if (typeof submitted !== 'string' || submitted.length === 0) return false
