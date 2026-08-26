@@ -723,7 +723,7 @@ function VisualEditorTab() {
 
 /* ---------------- Admin Console ---------------- */
 function AdminConsole() {
-  const { config, updateConfig, resetConfig, lastSaved } = useSiteConfig()
+  const { config, updateConfig, resetConfig } = useSiteConfig()
   const [tab, setTab] = useState('contact')
 
   const logout = async () => {
@@ -764,18 +764,10 @@ function AdminConsole() {
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-6 py-3">
-        <div className="flex items-start gap-2.5 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-xs sm:text-sm text-accent-dark">
-          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-          <p>
-            Site content, settings, and availability now save to Supabase and appear on the live site immediately —
-            no rebuild or redeploy needed.
-            {lastSaved && <span className="block mt-1 text-accent-dark/70">Last change: {lastSaved.toLocaleString()}</span>}
-          </p>
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-6 pb-24 grid lg:grid-cols-[220px_1fr] gap-8 mt-4">
+      <div className={tab === 'editor'
+        ? 'px-4 sm:px-6 pb-24 grid lg:grid-cols-[220px_1fr] gap-6 mt-6'
+        : 'max-w-6xl mx-auto px-6 pb-24 grid lg:grid-cols-[220px_1fr] gap-8 mt-6'
+      }>
         <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
           {tabs.map(({ key, label, Icon }) => (
             <button
@@ -790,7 +782,7 @@ function AdminConsole() {
           ))}
         </nav>
 
-        <div className="bg-white border border-divider rounded-5xl p-6 sm:p-10 shadow-sm">
+        <div className={tab === 'editor' ? '' : 'bg-white border border-divider rounded-5xl p-6 sm:p-10 shadow-sm'}>
           {tab === 'contact' && <ContactTab config={config} updateConfig={updateConfig} />}
           {tab === 'availability' && <AvailabilityTab />}
           {tab === 'content' && <ContentTab config={config} updateConfig={updateConfig} />}
