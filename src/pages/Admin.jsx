@@ -94,16 +94,23 @@ function TextArea({ label, ...props }) {
   )
 }
 
-function SaveBar({ onSave, saved }) {
+function SaveBar({ onSave, saved, error }) {
   return (
-    <div className="flex items-center gap-3 mt-8 pt-6 border-t border-divider">
-      <button type="button" onClick={onSave} className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-6 py-3 rounded-full text-sm">
-        <Save className="h-4 w-4" /> Save Changes
-      </button>
-      {saved && (
-        <span className="inline-flex items-center gap-1.5 text-emerald-600 text-sm font-medium">
-          <Check className="h-4 w-4" /> Saved
-        </span>
+    <div className="mt-8 pt-6 border-t border-divider">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={onSave} className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-6 py-3 rounded-full text-sm">
+          <Save className="h-4 w-4" /> Save Changes
+        </button>
+        {saved && (
+          <span className="inline-flex items-center gap-1.5 text-emerald-600 text-sm font-medium">
+            <Check className="h-4 w-4" /> Saved
+          </span>
+        )}
+      </div>
+      {error && (
+        <p className="mt-2.5 flex items-start gap-1.5 text-red-600 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> {error}
+        </p>
       )}
     </div>
   )
@@ -113,11 +120,14 @@ function SaveBar({ onSave, saved }) {
 function ContactTab({ config, updateConfig }) {
   const [form, setForm] = useState(config.contact)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
   const set = (k, v) => { setForm((p) => ({ ...p, [k]: v })); setSaved(false) }
 
   const save = async () => {
-    await updateConfig({ contact: form })
-    setSaved(true)
+    setError('')
+    const result = await updateConfig({ contact: form })
+    if (result.ok) setSaved(true)
+    else setError(result.error || 'Could not save. Please try again.')
   }
 
   return (
@@ -132,7 +142,7 @@ function ContactTab({ config, updateConfig }) {
         <Input label="Serving Area" value={form.serving} onChange={(e) => set('serving', e.target.value)} placeholder="Online nationwide & in-person locally" />
         <Input label="Hours" value={form.hours} onChange={(e) => set('hours', e.target.value)} placeholder="Mon-Fri · 3:00-7:00 PM" />
       </div>
-      <SaveBar onSave={save} saved={saved} />
+      <SaveBar onSave={save} saved={saved} error={error} />
     </div>
   )
 }
@@ -566,6 +576,7 @@ function ContentTab({ config, updateConfig }) {
   const [stats, setStats] = useState(config.stats)
   const [booking, setBooking] = useState(config.booking)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
   const setPageField = (page, key, value) => {
     setPages((prev) => ({ ...prev, [page]: { ...prev[page], [key]: value } }))
@@ -578,12 +589,14 @@ function ContentTab({ config, updateConfig }) {
   }
 
   const save = async () => {
-    await updateConfig({ hero, pages, footer, stats: {
+    setError('')
+    const result = await updateConfig({ hero, pages, footer, stats: {
       sessions: Number(stats.sessions) || 0,
       freePercent: Number(stats.freePercent) || 0,
       replyHours: Number(stats.replyHours) || 0,
     }, booking })
-    setSaved(true)
+    if (result.ok) setSaved(true)
+    else setError(result.error || 'Could not save. Please try again.')
   }
 
   const pageGroups = [
@@ -657,7 +670,7 @@ function ContentTab({ config, updateConfig }) {
         </div>
       </div>
 
-      <SaveBar onSave={save} saved={saved} />
+      <SaveBar onSave={save} saved={saved} error={error} />
     </div>
   )
 }

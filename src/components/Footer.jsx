@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import Editable from './editor/Editable.jsx'
+import { fillGradeTemplate } from '../lib/grades.js'
 
 const LOGO_CLICK_THRESHOLD = 5
 const LOGO_CLICK_RESET_MS = 1500
@@ -10,6 +11,7 @@ const LOGO_CLICK_RESET_MS = 1500
 export default function Footer() {
   const { config } = useSiteConfig()
   const { contact, footer } = config
+  const g = (text) => fillGradeTemplate(text, config.booking.minGrade, config.booking.maxGrade)
   const navigate = useNavigate()
   const logoClickCount = useRef(0)
   const logoClickTimer = useRef(null)
@@ -42,7 +44,7 @@ export default function Footer() {
             <span className="font-serif italic font-medium text-accent block">{footer.tagline2}</span>
           </h2>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-8 gap-6">
-            <p className="text-white/50 max-w-md">{footer.blurb}</p>
+            <p className="text-white/50 max-w-md">{g(footer.blurb)}</p>
             <Link to="/booking" className="magnetic-btn inline-flex items-center gap-2 bg-primary text-white font-semibold px-7 py-3.5 rounded-full self-start sm:self-auto">
               <Editable id="footer.ctaLabel" as="span" contentPath="footer.ctaLabel" label="Footer CTA Button">{footer.ctaLabel}</Editable>
               <ArrowRight className="h-4 w-4" />
@@ -61,7 +63,7 @@ export default function Footer() {
               />
             </div>
             <Editable id="footer.aboutBlurb" as="p" contentPath="footer.aboutBlurb" label="Footer About Blurb" className="text-white/50 text-sm leading-relaxed max-w-xs">
-              {footer.aboutBlurb}
+              {g(footer.aboutBlurb)}
             </Editable>
             <Editable id="footer.communityLine" as="p" contentPath="footer.communityLine" label="Footer Community Line" className="font-mono text-[10px] uppercase tracking-widest text-white/30 mt-6">
               {footer.communityLine}

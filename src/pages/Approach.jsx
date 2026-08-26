@@ -6,6 +6,7 @@ import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 import Editable from '../components/editor/Editable.jsx'
 import { runAnimationPreset } from '../lib/animationPresets.js'
+import { fillGradeTemplate } from '../lib/grades.js'
 
 // Images/alt text stay static (not text-editable in v1) — title/tagline/
 // text/meta per step are config-driven.
@@ -124,6 +125,7 @@ function TrustSignals() {
   const { config } = useSiteConfig()
   const badges = config.approach.trustBadges
   const p = config.pages.approach
+  const g = (text) => fillGradeTemplate(text, config.booking.minGrade, config.booking.maxGrade)
 
   useEffect(() => {
     const style = config.elementStyles?.['approach.trustSignals.badges'] || {}
@@ -163,7 +165,7 @@ function TrustSignals() {
                   {badge.title}
                 </Editable>
                 <Editable id={`approach.trustBadges.${i}.text`} as="p" contentPath={`approach.trustBadges.${i}.text`} label={`Trust Badge ${i + 1} Text`} className="text-muted text-sm leading-relaxed">
-                  {badge.text}
+                  {g(badge.text)}
                 </Editable>
               </div>
             )

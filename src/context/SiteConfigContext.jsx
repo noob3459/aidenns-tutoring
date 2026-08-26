@@ -4,8 +4,8 @@ export const DEFAULT_CONFIG = {
   contact: {
     phone: '(949) 795-7036',
     phoneTel: '+19497957036',
-    email: 'aidenn@aidennstutoring.org',
-    donateEmail: 'donate@aidennstutoring.org',
+    email: 'aidenn@aidennstutoring.com',
+    donateEmail: 'aidenn@aidennstutoring.com',
     serving: 'Online nationwide & in-person in Rancho Cucamonga and Fontana, CA',
     hours: 'Mon-Fri · 3:00-7:00 PM',
     phoneLabel: 'Call or Text',
@@ -14,10 +14,10 @@ export const DEFAULT_CONFIG = {
     hoursLabel: 'Hours',
   },
   hero: {
-    eyebrow: 'K-9 Math Tutoring · 100% Free',
+    eyebrow: '{grades} Math Tutoring · 100% Free',
     line1: 'Premium Math Tutoring.',
     line2: 'Always Free.',
-    subtext: 'One-on-one K-9 math tutoring from a certified educator, online or in person. No tuition, no hidden fees, ever.',
+    subtext: 'One-on-one {grades} math tutoring from a certified educator, online or in person. No tuition, no hidden fees, ever.',
     pillPrefix: '$0',
     pillText: 'per session, every session, forever.',
     scrollLabel: 'Scroll',
@@ -27,7 +27,7 @@ export const DEFAULT_CONFIG = {
       eyebrow: '╱ Everything We Offer',
       heading1: 'Every grade,',
       heading2: 'one tutor.',
-      sub: 'K-9 math, covered start to finish, online or in person, always at no cost.',
+      sub: '{grades} math, covered start to finish, online or in person, always at no cost.',
       ctaLabel: 'Book a Free Session',
       prompt: '',
     },
@@ -67,11 +67,11 @@ export const DEFAULT_CONFIG = {
   footer: {
     tagline1: 'Math help you can',
     tagline2: 'count on.',
-    blurb: 'Aidenn’s Tutoring: free K-9 math tutoring, online and in person, funded by generous donors.',
+    blurb: 'Aidenn’s Tutoring: free {grades} math tutoring, online and in person, funded by generous donors.',
     communityLine: 'Community-Funded · Est. 2024',
     statusPillText: 'Booking Open · Accepting Students',
     ctaLabel: 'Book a Free Session',
-    aboutBlurb: 'Certified K-9 math tutoring for every family, no tuition, no hidden fees, ever.',
+    aboutBlurb: 'Certified {grades} math tutoring for every family, no tuition, no hidden fees, ever.',
     servicesHeading: 'Services',
     programHeading: 'Program',
     contactHeading: 'Contact',
@@ -116,7 +116,7 @@ export const DEFAULT_CONFIG = {
       {
         eyebrow: '01 / Personalized',
         heading: 'Built Around Your Child’s Grade',
-        sub: 'K-9, matched exactly',
+        sub: '{grades}, matched exactly',
         text: 'Every plan starts with your student’s exact grade and skill level, from early number sense to Algebra I. No generic worksheets, ever.',
       },
       {
@@ -168,7 +168,7 @@ export const DEFAULT_CONFIG = {
     trustBadges: [
       { title: 'Loved by Parents', text: '“My son actually looks forward to math night now.” (a parent, Grade 4)' },
       { title: 'Real Score Improvement', text: 'Students average a full letter-grade jump within one semester of weekly sessions.' },
-      { title: 'Certified & Background-Checked', text: 'Every session is led by a certified K-9 educator trained in child-safe tutoring practices.' },
+      { title: 'Certified & Background-Checked', text: 'Every session is led by a certified {grades} educator trained in child-safe tutoring practices.' },
     ],
     trustSignalsHeading: {
       eyebrow: '╱ Why Families Trust Us',
@@ -190,7 +190,7 @@ export const DEFAULT_CONFIG = {
     minGrade: 'K',
     maxGrade: '9',
     steps: [
-      { heading: 'What grade is your student in?', sub: 'We tutor kindergarten through 9th grade math. Free, always.' },
+      { heading: 'What grade is your student in?', sub: 'We tutor {gradesLong} math. Free, always.' },
       { heading: 'Online or in person?', sub: 'Both formats are completely free.' },
       { heading: 'Pick a day and time', sub: 'All times Pacific (America/Los Angeles).' },
       { heading: 'A few last details', sub: 'So we know who to expect, and where to send the confirmation.' },
@@ -242,27 +242,27 @@ export const DEFAULT_CONFIG = {
     name: 'Aidenn',
     role: 'Founder & Lead Tutor',
     bioParagraphs: [
-      { text: 'I started Aidenn’s Tutoring because I believe every K-9 student deserves one-on-one math help, regardless of what their family can afford.' },
+      { text: 'I started Aidenn’s Tutoring because I believe every {grades} student deserves one-on-one math help, regardless of what their family can afford.' },
       { text: 'Every session is built around your student’s exact grade and skill level, whether that’s early number sense or the first steps into algebra.' },
       { text: 'Outside of tutoring, I’m focused on keeping this program free forever, funded by donations instead of tuition.' },
     ],
     credentials: [
       { title: 'Trusted by Many', text: 'Relied on by families across the community for safe, one-on-one tutoring.' },
-      { title: 'K-9 Math Specialist', text: 'Focused exclusively on K-9 math, from counting to Algebra I.' },
+      { title: '{grades} Math Specialist', text: 'Focused exclusively on {grades} math, from counting to Algebra I.' },
       { title: 'Local & Online', text: 'In-person sessions in Rancho Cucamonga and Fontana, CA, plus online nationwide.' },
     ],
   },
   legal: {
     privacyHeading: 'Privacy Policy',
     privacyParagraphs: [
-      { text: 'Aidenn’s Tutoring is a free K-9 math tutoring service. We collect only what’s needed to schedule and run sessions: a parent or guardian’s name, email, phone number, and the student’s grade level.' },
+      { text: 'Aidenn’s Tutoring is a free {grades} math tutoring service. We collect only what’s needed to schedule and run sessions: a parent or guardian’s name, email, phone number, and the student’s grade level.' },
       { text: 'Booking details are used solely to confirm sessions and send reminders. We never sell or share family information with third parties, and student information is never used for marketing.' },
       { text: 'You may request deletion of your family’s information at any time by contacting us using the details on the Contact page.' },
       { text: 'This policy may be updated periodically to reflect how the program operates. Continued use of the booking system after changes means you accept the current policy.' },
     ],
     termsHeading: 'Terms of Service',
     termsParagraphs: [
-      { text: 'Sessions booked through Aidenn’s Tutoring are provided free of charge to K-9 students. Donations are entirely optional and go toward keeping the program free for every family.' },
+      { text: 'Sessions booked through Aidenn’s Tutoring are provided free of charge to {grades} students. Donations are entirely optional and go toward keeping the program free for every family.' },
       { text: 'Please arrive on time for scheduled sessions and give at least 24 hours’ notice to reschedule or cancel, so the time slot can be offered to another student.' },
       { text: 'In-person sessions require a parent or guardian to remain reachable for the duration of the session. Online sessions are held over video call using the link provided at booking.' },
       { text: 'Aidenn’s Tutoring reserves the right to pause or decline bookings if capacity is reached. Every effort is made to offer an alternate time.' },

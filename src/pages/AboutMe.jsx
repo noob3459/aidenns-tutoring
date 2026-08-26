@@ -6,12 +6,14 @@ import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 import Editable from '../components/editor/Editable.jsx'
 import { runAnimationPreset } from '../lib/animationPresets.js'
+import { fillGradeTemplate } from '../lib/grades.js'
 
 const CREDENTIAL_ICONS = [ShieldCheck, Sigma, MapPin]
 
 function Profile() {
   const { config } = useSiteConfig()
   const about = config.about
+  const g = (text) => fillGradeTemplate(text, config.booking.minGrade, config.booking.maxGrade)
 
   return (
     <section className="relative px-6 sm:px-10 lg:px-16 pb-16">
@@ -37,7 +39,7 @@ function Profile() {
               label={`Bio Paragraph ${i + 1}`}
               className="text-muted text-base sm:text-lg leading-relaxed"
             >
-              {para.text}
+              {g(para.text)}
             </Editable>
           ))}
         </div>
@@ -51,6 +53,7 @@ function Credentials() {
   const { config } = useSiteConfig()
   const credentials = config.about.credentials
   const p = config.pages.about
+  const g = (text) => fillGradeTemplate(text, config.booking.minGrade, config.booking.maxGrade)
 
   useEffect(() => {
     const style = config.elementStyles?.['about.credentials'] || {}
@@ -78,10 +81,10 @@ function Credentials() {
               >
                 {Icon && <Icon className="h-6 w-6 text-primary mb-3" strokeWidth={1.8} />}
                 <Editable id={`about.credentials.${i}.title`} as="h3" contentPath={`about.credentials.${i}.title`} label={`Credential ${i + 1} Title`} className="font-display font-bold text-lg text-ink mb-1.5">
-                  {c.title}
+                  {g(c.title)}
                 </Editable>
                 <Editable id={`about.credentials.${i}.text`} as="p" contentPath={`about.credentials.${i}.text`} label={`Credential ${i + 1} Text`} className="text-muted text-sm leading-relaxed">
-                  {c.text}
+                  {g(c.text)}
                 </Editable>
               </div>
             )

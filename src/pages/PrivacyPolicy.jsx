@@ -1,9 +1,11 @@
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import Editable from '../components/editor/Editable.jsx'
+import { fillGradeTemplate } from '../lib/grades.js'
 
 export default function PrivacyPolicy() {
   const { config } = useSiteConfig()
   const { legal } = config
+  const g = (text) => fillGradeTemplate(text, config.booking.minGrade, config.booking.maxGrade)
 
   return (
     <div className="pt-36 sm:pt-44 pb-20 px-6 sm:px-10">
@@ -14,7 +16,7 @@ export default function PrivacyPolicy() {
         <div className="space-y-6 text-muted leading-relaxed">
           {legal.privacyParagraphs.map((para, i) => (
             <Editable key={i} id={`legal.privacyParagraphs.${i}.text`} as="p" contentPath={`legal.privacyParagraphs.${i}.text`} label={`Privacy Paragraph ${i + 1}`}>
-              {para.text}
+              {g(para.text)}
             </Editable>
           ))}
         </div>

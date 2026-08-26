@@ -1,9 +1,11 @@
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import Editable from '../components/editor/Editable.jsx'
+import { fillGradeTemplate } from '../lib/grades.js'
 
 export default function Terms() {
   const { config } = useSiteConfig()
   const { legal } = config
+  const g = (text) => fillGradeTemplate(text, config.booking.minGrade, config.booking.maxGrade)
 
   return (
     <div className="pt-36 sm:pt-44 pb-20 px-6 sm:px-10">
@@ -14,7 +16,7 @@ export default function Terms() {
         <div className="space-y-6 text-muted leading-relaxed">
           {legal.termsParagraphs.map((para, i) => (
             <Editable key={i} id={`legal.termsParagraphs.${i}.text`} as="p" contentPath={`legal.termsParagraphs.${i}.text`} label={`Terms Paragraph ${i + 1}`}>
-              {para.text}
+              {g(para.text)}
             </Editable>
           ))}
         </div>

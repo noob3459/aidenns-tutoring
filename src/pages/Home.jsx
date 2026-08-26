@@ -6,6 +6,7 @@ import { ArrowRight, ArrowUpRight, Phone } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import Editable from '../components/editor/Editable.jsx'
 import { runAnimationPreset } from '../lib/animationPresets.js'
+import { fillGradeTemplate } from '../lib/grades.js'
 import GradeShuffler from '../components/GradeShuffler.jsx'
 import MathRain from '../components/MathRain.jsx'
 import SchedulerDemo from '../components/SchedulerDemo.jsx'
@@ -18,6 +19,7 @@ const FEATURE_DEMO_COMPONENTS = [GradeShuffler, MathRain, SchedulerDemo]
 function Hero() {
   const { config } = useSiteConfig()
   const heroRef = useRef(null)
+  const g = (text) => fillGradeTemplate(text, config.booking.minGrade, config.booking.maxGrade)
 
   useEffect(() => {
     const style = config.elementStyles?.['home.hero'] || {}
@@ -64,7 +66,7 @@ function Hero() {
         <div className="px-6 sm:px-10 lg:px-16 max-w-4xl">
           <Editable id="home.hero.eyebrow" as="p" contentPath="hero.eyebrow" label="Hero Eyebrow Badge" className="hero-meta inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.28em] text-accent mb-6 border border-accent/40 bg-accent/10 rounded-full px-4 py-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse-slow" />
-            {config.hero.eyebrow}
+            {g(config.hero.eyebrow)}
           </Editable>
           <h1 className="font-display font-extrabold text-white leading-[0.95] tracking-tight">
             <Editable id="home.hero.line1" as="span" contentPath="hero.line1" label="Hero Headline (Line 1)" className="hero-line-1 block text-4xl sm:text-5xl md:text-6xl">
@@ -80,7 +82,7 @@ function Hero() {
           </h1>
 
           <Editable id="home.hero.subtext" as="p" contentPath="hero.subtext" label="Hero Subtext" className="hero-meta mx-auto max-w-xl text-white/75 text-base sm:text-lg mt-8 leading-relaxed">
-            {config.hero.subtext}
+            {g(config.hero.subtext)}
           </Editable>
 
           <div className="hero-cta mt-10 flex flex-col sm:flex-row gap-4 justify-center">
@@ -127,6 +129,7 @@ function Features() {
   const { config } = useSiteConfig()
   const cards = config.home.featureCards
   const fs = config.home.featuresSection
+  const g = (text) => fillGradeTemplate(text, config.booking.minGrade, config.booking.maxGrade)
 
   useEffect(() => {
     const style = config.elementStyles?.['home.features.cards'] || {}
@@ -183,7 +186,7 @@ function Features() {
                     {card.heading}
                   </Editable>
                   <Editable id={`home.featureCards.${idx}.sub`} contentPath={`home.featureCards.${idx}.sub`} label={`Feature Card ${idx + 1} Subheading`} as="p" className="font-serif italic text-primary-dark text-sm mt-1">
-                    {card.sub}
+                    {g(card.sub)}
                   </Editable>
                   <Editable id={`home.featureCards.${idx}.text`} contentPath={`home.featureCards.${idx}.text`} label={`Feature Card ${idx + 1} Body Text`} as="p" className="text-muted text-[15px] mt-4 leading-relaxed">
                     {card.text}

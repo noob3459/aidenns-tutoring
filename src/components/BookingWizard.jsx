@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { useSiteConfig } from '../context/SiteConfigContext.jsx'
 import { getPacificCurrentMonth, formatDayLabel } from '../lib/timezone.js'
-import { gradeRange } from '../lib/grades.js'
+import { gradeRange, fillGradeTemplate } from '../lib/grades.js'
 import MonthCalendar from './MonthCalendar.jsx'
 import Field from './Field.jsx'
 import Editable from './editor/Editable.jsx'
@@ -18,6 +18,7 @@ export default function BookingWizard() {
   const bookingSteps = config.booking.steps
   const b = config.booking
   const GRADES = gradeRange(b.minGrade, b.maxGrade)
+  const g = (text) => fillGradeTemplate(text, b.minGrade, b.maxGrade)
 
   const [step, setStep] = useState(1)
   const [status, setStatus] = useState('idle') // 'idle' | 'sending' | 'sent' | 'error'
@@ -272,7 +273,7 @@ export default function BookingWizard() {
                       {bookingSteps[0].heading}
                     </Editable>
                     <Editable id="booking.steps.0.sub" as="p" contentPath="booking.steps.0.sub" label="Booking Step 1 Subtext" className="text-muted text-sm mb-6">
-                      {bookingSteps[0].sub}
+                      {g(bookingSteps[0].sub)}
                     </Editable>
                     <div className="grid grid-cols-5 gap-2.5">
                       {GRADES.map((g) => (
@@ -297,7 +298,7 @@ export default function BookingWizard() {
                       {bookingSteps[1].heading}
                     </Editable>
                     <Editable id="booking.steps.1.sub" as="p" contentPath="booking.steps.1.sub" label="Booking Step 2 Subtext" className="text-muted text-sm mb-6">
-                      {bookingSteps[1].sub}
+                      {g(bookingSteps[1].sub)}
                     </Editable>
                     <div className="grid sm:grid-cols-2 gap-4">
                       {b.formatOptions.map(({ label, text }, i) => {
@@ -331,7 +332,7 @@ export default function BookingWizard() {
                       {bookingSteps[2].heading}
                     </Editable>
                     <Editable id="booking.steps.2.sub" as="p" contentPath="booking.steps.2.sub" label="Booking Step 3 Subtext" className="text-muted text-sm mb-6">
-                      {bookingSteps[2].sub}
+                      {g(bookingSteps[2].sub)}
                     </Editable>
 
                     <MonthCalendar
@@ -387,7 +388,7 @@ export default function BookingWizard() {
                       {bookingSteps[3].heading}
                     </Editable>
                     <Editable id="booking.steps.3.sub" as="p" contentPath="booking.steps.3.sub" label="Booking Step 4 Subtext" className="text-muted text-sm mb-6">
-                      {bookingSteps[3].sub}
+                      {g(bookingSteps[3].sub)}
                     </Editable>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <Field label={<Editable id="booking.fieldLabels.parentName" as="span" contentPath="booking.fieldLabels.parentName" label="Parent Name Field Label">{b.fieldLabels.parentName}</Editable>}>

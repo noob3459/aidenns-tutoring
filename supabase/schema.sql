@@ -85,19 +85,19 @@ values (1, '{
   "contact": {
     "phone": "(949) 795-7036",
     "phoneTel": "+19497957036",
-    "email": "aidenn@aidennstutoring.org",
-    "donateEmail": "donate@aidennstutoring.org",
+    "email": "aidenn@aidennstutoring.com",
+    "donateEmail": "aidenn@aidennstutoring.com",
     "serving": "Online nationwide & in-person in Rancho Cucamonga and Fontana, CA",
     "hours": "Mon-Fri · 3:00-7:00 PM"
   },
   "hero": {
-    "eyebrow": "K-9 Math Tutoring · 100% Free",
+    "eyebrow": "{grades} Math Tutoring · 100% Free",
     "line1": "Premium Math Tutoring.",
     "line2": "Always Free.",
-    "subtext": "One-on-one K-9 math tutoring from a certified educator, online or in person. No tuition, no hidden fees, ever."
+    "subtext": "One-on-one {grades} math tutoring from a certified educator, online or in person. No tuition, no hidden fees, ever."
   },
   "pages": {
-    "services": { "eyebrow": "╱ Everything We Offer", "heading1": "Every grade,", "heading2": "one tutor.", "sub": "K-9 math, covered start to finish, online or in person, always at no cost." },
+    "services": { "eyebrow": "╱ Everything We Offer", "heading1": "Every grade,", "heading2": "one tutor.", "sub": "{grades} math, covered start to finish, online or in person, always at no cost." },
     "approach": { "eyebrow": "╱ How It Works", "heading1": "Three steps.", "heading2": "No surprises.", "sub": "From a two-minute intake to a confirmed weekly session, every step is free." },
     "contact": { "eyebrow": "╱ Get In Touch", "heading1": "Let’s talk", "heading2": "math.", "sub": "Questions before you book? Reach out any time. We usually reply within a day." },
     "booking": { "eyebrow": "╱ Book a Free Session", "heading1": "Takes about", "heading2": "a minute.", "sub": "Pick your student’s grade, choose online or in person, and grab an open time slot. No card, no account, no cost." },
@@ -107,20 +107,20 @@ values (1, '{
     "name": "Aidenn",
     "role": "Founder & Lead Tutor",
     "bioParagraphs": [
-      { "text": "I started Aidenn’s Tutoring because I believe every K-9 student deserves one-on-one math help, regardless of what their family can afford." },
+      { "text": "I started Aidenn’s Tutoring because I believe every {grades} student deserves one-on-one math help, regardless of what their family can afford." },
       { "text": "Every session is built around your student’s exact grade and skill level, whether that’s early number sense or the first steps into algebra." },
       { "text": "Outside of tutoring, I’m focused on keeping this program free forever, funded by donations instead of tuition." }
     ],
     "credentials": [
       { "title": "Trusted by Many", "text": "Relied on by families across the community for safe, one-on-one tutoring." },
-      { "title": "K-9 Math Specialist", "text": "Focused exclusively on K-9 math, from counting to Algebra I." },
+      { "title": "{grades} Math Specialist", "text": "Focused exclusively on {grades} math, from counting to Algebra I." },
       { "title": "Local & Online", "text": "In-person sessions in Rancho Cucamonga and Fontana, CA, plus online nationwide." }
     ]
   },
   "footer": {
     "tagline1": "Math help you can",
     "tagline2": "count on.",
-    "blurb": "Aidenn’s Tutoring: free K-9 math tutoring, online and in person, funded by generous donors."
+    "blurb": "Aidenn’s Tutoring: free {grades} math tutoring, online and in person, funded by generous donors."
   },
   "stats": { "sessions": 500, "freePercent": 100, "replyHours": 24 }
 }'::jsonb)
