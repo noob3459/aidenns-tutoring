@@ -1,4 +1,8 @@
-const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+// Mirrors src/lib/grades.js's ALL_GRADES and api/_lib/validateSettings.js's
+// GRADE_VALUES — the admin's Grades Served range can extend up to 12, so
+// this must accept the same full range or bookings for grades 10-12 are
+// rejected here even though the wizard legitimately offered them.
+const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
 const FORMATS = ['Online', 'In-Person']
 
 function isNonEmptyString(v, max = 200) {

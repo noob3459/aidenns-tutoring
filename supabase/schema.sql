@@ -411,7 +411,7 @@ begin
     raise exception 'slot_id is required' using errcode = '22004';
   end if;
 
-  if p_grade is null or p_grade not in ('K','1','2','3','4','5','6','7','8','9') then
+  if p_grade is null or p_grade not in ('K','1','2','3','4','5','6','7','8','9','10','11','12') then
     raise exception 'invalid_grade' using errcode = '22023';
   end if;
 
