@@ -634,6 +634,7 @@ function ContentTab({ config, updateConfig }) {
   const save = async () => {
     setError('')
     const result = await updateConfig({ hero, pages, footer, stats: {
+      ...stats,
       sessions: Number(stats.sessions) || 0,
       freePercent: Number(stats.freePercent) || 0,
       replyHours: Number(stats.replyHours) || 0,
