@@ -14,6 +14,7 @@ import Contact from './pages/Contact.jsx'
 import PrivacyPolicy from './pages/PrivacyPolicy.jsx'
 import Terms from './pages/Terms.jsx'
 import Admin from './pages/Admin.jsx'
+import ManageBooking from './pages/ManageBooking.jsx'
 import './index.css'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -34,6 +35,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/terms" element={<Terms />} />
           </Route>
           <Route path="/admin" element={<Admin />} />
+          <Route path="/manage-booking" element={<ManageBooking />} />
         </Routes>
       </BrowserRouter>
     </SiteConfigProvider>

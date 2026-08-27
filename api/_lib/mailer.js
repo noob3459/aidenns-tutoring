@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { escapeHtml } from './validate.js'
+import { signBookingToken } from './bookingTokens.js'
 
 let resendClient = null
 
@@ -157,6 +158,26 @@ function zoomBlock(zoomLink) {
   </div>`
 }
 
+// One row of "act on this booking without logging in" buttons, each a link
+// to the public /manage-booking page carrying a single signed, role-scoped
+// token (see api/_lib/bookingTokens.js) plus an `action` hint that just
+// pre-selects what that page highlights — the actual state change only ever
+// happens from a click on that page (a POST), never from opening this link.
+function actionButtons(bookingId, role, actions) {
+  const token = signBookingToken({ bookingId, role })
+  return `<div style="margin:0 0 20px;text-align:center;">${actions
+    .map(({ action, label, bg }) => `
+    <span style="display:inline-block;margin:0 6px 8px;">${button(`${SITE_URL}/manage-booking?token=${encodeURIComponent(token)}&action=${action}`, label, { bg })}</span>`)
+    .join('')}</div>`
+}
+
+// Plain-text equivalent of actionButtons — one "Label: url" line per action,
+// for mail clients that render the text part.
+function actionLinksText(bookingId, role, actions) {
+  const token = signBookingToken({ bookingId, role })
+  return actions.map(({ action, label }) => `${label}: ${SITE_URL}/manage-booking?token=${encodeURIComponent(token)}&action=${action}`)
+}
+
 async function send({ to, bcc, replyTo, subject, text, html }) {
   const payload = { from: MAIL_FROM, to, replyTo, subject, text, html }
   if (bcc && bcc.length) payload.bcc = bcc
@@ -196,7 +217,13 @@ export async function sendOwnerNotification(booking, zoomLink) {
     `${booking.format} · ${booking.requested_date_label} at ${booking.requested_time}`,
     ...rows.map(([label, value]) => `${label}: ${value}`),
     '',
-    'This is a REQUEST only. Reply to this email (goes straight to the parent) or use the admin dashboard to confirm, reschedule, or decline.',
+    'This is a REQUEST only. Reply to this email (goes straight to the parent), or use one of the links below — no login needed:',
+    '',
+    ...actionLinksText(booking.id, 'admin', [
+      { action: 'confirm', label: 'Confirm' },
+      { action: 'decline', label: 'Decline' },
+      { action: 'reschedule', label: 'Reschedule' },
+    ]),
   ].join('\n')
 
   const html = wrapEmail([
@@ -204,7 +231,12 @@ export async function sendOwnerNotification(booking, zoomLink) {
     sessionTag(booking),
     summaryPills(booking),
     detailTable(rows),
-    paragraph('Reply directly to this email to reach the parent, or head to the admin dashboard to confirm, reschedule, or decline.', `color:${MUTED};margin-top:20px;`),
+    actionButtons(booking.id, 'admin', [
+      { action: 'confirm', label: 'Confirm', bg: '#16A34A' },
+      { action: 'decline', label: 'Decline', bg: '#DC2626' },
+      { action: 'reschedule', label: 'Reschedule', bg: PRIMARY },
+    ]),
+    paragraph('Reply directly to this email to reach the parent, or use the buttons above to confirm, reschedule, or decline — no login needed.', `color:${MUTED};margin-top:4px;`),
   ].join(''))
 
   // Owner notification intentionally replies to the parent, not MAIL_REPLY_TO,
@@ -236,6 +268,13 @@ export async function sendParentReceipt(booking) {
     '',
     'If you don’t hear back within a day or two, feel free to reply to this email directly.',
     '',
+    'Need to cancel or pick a different time? Use the links below — no login needed:',
+    '',
+    ...actionLinksText(booking.id, 'client', [
+      { action: 'cancel', label: 'Cancel' },
+      { action: 'reschedule', label: 'Reschedule' },
+    ]),
+    '',
     'Aidenn’s Tutoring',
   ].join('\n')
 
@@ -246,6 +285,10 @@ export async function sendParentReceipt(booking) {
     paragraph(`Thanks for requesting a free math session for <strong>${escapeHtml(booking.student_name)}</strong>.`),
     summaryPills(booking),
     callout('<strong>This isn&rsquo;t confirmed yet.</strong> Aidenn personally reviews and confirms every session &mdash; you&rsquo;ll hear back directly (with the Zoom link, if online) once it&rsquo;s confirmed.'),
+    actionButtons(booking.id, 'client', [
+      { action: 'cancel', label: 'Cancel Request', bg: '#DC2626' },
+      { action: 'reschedule', label: 'Reschedule', bg: PRIMARY },
+    ]),
     paragraph('If you don&rsquo;t hear back within a day or two, just reply to this email.', `color:${MUTED};`),
     paragraph('Aidenn&rsquo;s Tutoring', 'margin:0;'),
   ].join(''))
@@ -276,6 +319,13 @@ export async function sendConfirmationEmail(booking, zoomLink) {
     '',
     'See you then! Reply to this email if anything changes on your end.',
     '',
+    'Need to cancel or pick a different time? Use the links below — no login needed:',
+    '',
+    ...actionLinksText(booking.id, 'client', [
+      { action: 'cancel', label: 'Cancel' },
+      { action: 'reschedule', label: 'Reschedule' },
+    ]),
+    '',
     'Aidenn’s Tutoring',
   ].join('\n')
 
@@ -286,6 +336,10 @@ export async function sendConfirmationEmail(booking, zoomLink) {
     paragraph(`Good news — <strong>${escapeHtml(booking.student_name)}</strong>'s free math session is confirmed.`),
     summaryPills(booking),
     includeZoom ? zoomBlock(zoomLink) : (booking.format === 'In-Person' ? callout('See you at the agreed location — reply to this email if you need directions or a reminder.', { bg: SURFACE, border: DIVIDER, color: MUTED }) : ''),
+    actionButtons(booking.id, 'client', [
+      { action: 'cancel', label: 'Cancel Session', bg: '#DC2626' },
+      { action: 'reschedule', label: 'Reschedule', bg: PRIMARY },
+    ]),
     paragraph('Reply to this email any time if your plans change.', `color:${MUTED};`),
     paragraph('Aidenn&rsquo;s Tutoring', 'margin:0;'),
   ].join(''))
@@ -337,6 +391,43 @@ export async function sendDeclineEmail(booking) {
 }
 
 // ---------------------------------------------------------------------
+// Cancel — sent whenever a booking is cancelled, whether the admin called
+// it off from a confirmed session or the customer cancelled it themselves
+// via their own "Cancel" link. BCCs the owner so there's always a record.
+// ---------------------------------------------------------------------
+export async function sendCancelEmail(booking) {
+  const text = [
+    `Hi ${booking.parent_name},`,
+    '',
+    sessionTagText(booking),
+    `${booking.student_name}'s session for ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}, has been cancelled.`,
+    '',
+    'Want to book a new time? Just reply to this email or submit a new request whenever works.',
+    '',
+    'Aidenn’s Tutoring',
+  ].join('\n')
+
+  const html = wrapEmail([
+    heading('Session Cancelled'),
+    sessionTag(booking),
+    paragraph(`Hi ${escapeHtml(booking.parent_name)},`),
+    paragraph(`<strong>${escapeHtml(booking.student_name)}</strong>'s session has been cancelled.`),
+    summaryPills(booking),
+    callout('Want to book a new time? Just reply to this email or submit a new request whenever works.', { bg: SURFACE, border: DIVIDER, color: MUTED }),
+    paragraph('Aidenn&rsquo;s Tutoring', 'margin:0;'),
+  ].join(''))
+
+  return send({
+    to: booking.email,
+    bcc: ownerCcList(),
+    replyTo: MAIL_REPLY_TO,
+    subject: `Cancelled: ${booking.student_name}'s session on ${booking.requested_date_label}`,
+    text,
+    html,
+  })
+}
+
+// ---------------------------------------------------------------------
 // Reschedule — sent to the parent whenever an admin moves a booking to
 // a different slot, whether it was pending or already confirmed. Only
 // shows the Zoom link if the booking is (still) confirmed and online —
@@ -354,7 +445,12 @@ export async function sendRescheduleEmail(booking, zoomLink) {
     booking.status === 'confirmed' ? 'This session is confirmed.' : 'This session is still pending confirmation.',
     ...(includeZoom ? ['', `Join here: ${zoomLink}`] : []),
     '',
-    'Reply to this email if the new time doesn’t work.',
+    'Reply to this email if the new time doesn’t work, or use the links below — no login needed:',
+    '',
+    ...actionLinksText(booking.id, 'client', [
+      { action: 'cancel', label: 'Cancel' },
+      { action: 'reschedule', label: 'Reschedule' },
+    ]),
     '',
     'Aidenn’s Tutoring',
   ].join('\n')
@@ -369,6 +465,10 @@ export async function sendRescheduleEmail(booking, zoomLink) {
       ? callout('This session is confirmed at the new time.', { bg: '#ECFDF5', border: '#A7F3D0', color: INK })
       : callout('This session is still pending confirmation at the new time.'),
     includeZoom ? zoomBlock(zoomLink) : '',
+    actionButtons(booking.id, 'client', [
+      { action: 'cancel', label: 'Cancel Session', bg: '#DC2626' },
+      { action: 'reschedule', label: 'Reschedule Again', bg: PRIMARY },
+    ]),
     paragraph('Reply to this email if the new time doesn&rsquo;t work.', `color:${MUTED};`),
     paragraph('Aidenn&rsquo;s Tutoring', 'margin:0;'),
   ].join(''))

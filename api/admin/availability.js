@@ -151,6 +151,29 @@ async function getBookingHistory(res, supabase) {
   return res.status(200).json({ bookings: data || [] })
 }
 
+const CANCELLED_HISTORY_MAX = 300
+
+// Cancelled and declined bookings, most recently changed first — this is
+// what the dashboard's "delete history" tools operate on. Unlike
+// getBookingHistory (confirmed/completed, restricted to past dates),
+// these can be any date — a booking is cancelled/declined the moment the
+// admin or customer acts, regardless of whether the session itself was
+// upcoming or already happened.
+async function getCancelledHistory(res, supabase) {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, parent_name, student_name, grade, format, requested_date, requested_date_label, requested_time, email, phone, notes, status, created_at')
+    .in('status', ['cancelled', 'declined'])
+    .order('created_at', { ascending: false })
+    .limit(CANCELLED_HISTORY_MAX)
+
+  if (error) {
+    console.error('Cancelled history query error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not load cancelled bookings.' })
+  }
+  return res.status(200).json({ bookings: data || [] })
+}
+
 const BOOKING_REQUESTS_MAX = 300
 
 // Every pending request awaiting a decision, any date, soonest first —
@@ -473,7 +496,8 @@ export default async function handler(req, res) {
     if (req.query.rules) return getRules(res, supabase)
     if (req.query.history) return getBookingHistory(res, supabase)
     if (req.query.requests) return getBookingRequests(res, supabase)
-    return res.status(400).json({ ok: false, error: 'Specify month, date, rules, history, or requests.' })
+    if (req.query.cancelled) return getCancelledHistory(res, supabase)
+    return res.status(400).json({ ok: false, error: 'Specify month, date, rules, history, requests, or cancelled.' })
   }
 
   if (req.method === 'POST') {

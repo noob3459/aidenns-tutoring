@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { validateSettings } from '../_lib/validateSettings.js'
-import { sendConfirmationEmail, sendRescheduleEmail, sendDeclineEmail } from '../_lib/mailer.js'
+import { applyBookingStatus, applyReschedule } from '../_lib/bookingActions.js'
 
 // Consolidates admin site-settings (read/update), booking status
 // transitions, rescheduling, and Visual Editor image uploads into one
@@ -11,34 +11,35 @@ import { sendConfirmationEmail, sendRescheduleEmail, sendDeclineEmail } from '..
 //
 // GET             -> current site_settings
 // POST { action: 'update-settings', ...patch }  -> validated, merged, saved
-// POST { action: 'booking-status', bookingId, status } -> calls the
-//   update_booking_status DB function (same transactional state-machine
-//   enforcement as before — unchanged); confirming a booking also emails
-//   the parent the confirmation (with the Zoom link, if online) — the
-//   only point in the whole flow where the family receives that link
-// POST { action: 'reschedule-booking', bookingId, newSlotId } -> calls
-//   the reschedule_booking DB function, then emails the parent the new
-//   time (still gated the same way: only includes the Zoom link if the
-//   booking is confirmed)
+// POST { action: 'booking-status', bookingId, status } -> POST
+//   { action: 'reschedule-booking', bookingId, newSlotId } -> both delegate
+//   to ../_lib/bookingActions.js, which calls the update_booking_status /
+//   reschedule_booking DB functions and sends the matching email
+//   (confirmation only ever carries the Zoom link, gated the same way as
+//   before). That module is shared with api/booking-action.js — the public,
+//   token-authenticated route the "Confirm/Decline/Reschedule" and
+//   "Cancel/Reschedule" email links point at — so both entry points run the
+//   exact same transition + email logic.
 // POST { action: 'upload-image', contentType, dataBase64 } -> uploads to
 //   the site-images Storage bucket (service_role only — see
 //   supabase/schema.sql), returns the public URL
+// POST { action: 'delete-booking', bookingId } / { action: 'delete-cancelled-bookings' }
+//   -> permanently deletes cancelled/declined booking row(s). Scoped to
+//   those two terminal statuses server-side (via the .in() filter on the
+//   delete itself, not a separate read-then-check) so a stale/forged
+//   bookingId can never delete an active pending/confirmed/completed
+//   booking. This is the one place in the app that physically deletes a
+//   booking — availability_slots rows are never deleted (see
+//   supabase/schema.sql), but bookings themselves have no archive concept,
+//   and the admin dashboard's cancelled-history view is explicitly meant
+//   to be cleared out over time.
 
-const ALLOWED_ACTIONS = ['update-settings', 'booking-status', 'reschedule-booking', 'upload-image']
+const ALLOWED_ACTIONS = [
+  'update-settings', 'booking-status', 'reschedule-booking', 'upload-image',
+  'delete-booking', 'delete-cancelled-bookings',
+]
+const DELETABLE_STATUSES = ['cancelled', 'declined']
 const ALLOWED_STATUSES = ['pending', 'confirmed', 'declined', 'completed', 'cancelled']
-
-// Best-effort site_settings read for the admin's Zoom Personal Meeting
-// Room link. Never throws — a settings-read hiccup just means the email
-// goes out without a Zoom link, same as if the admin never set one.
-async function getZoomLink(supabase) {
-  try {
-    const { data } = await supabase.from('site_settings').select('data').eq('id', 1).maybeSingle()
-    return data?.data?.contact?.zoomLink || ''
-  } catch (err) {
-    console.error('Zoom link lookup failed:', err)
-    return ''
-  }
-}
 
 const IMAGE_BUCKET = 'site-images'
 const ALLOWED_IMAGE_TYPES = {
@@ -95,43 +96,10 @@ async function bookingStatus(res, supabase, body) {
     return res.status(400).json({ ok: false, error: 'Invalid status.' })
   }
 
-  const { data, error } = await supabase
-    .rpc('update_booking_status', { p_booking_id: body.bookingId, p_new_status: body.status })
-    .single()
+  const { booking, error } = await applyBookingStatus(supabase, body.bookingId, body.status)
+  if (error) return res.status(error.status).json({ ok: false, error: error.message })
 
-  if (error) {
-    if (error.message?.includes('booking_not_found')) {
-      return res.status(404).json({ ok: false, error: 'Booking not found.' })
-    }
-    if (error.message?.includes('invalid_transition')) {
-      return res.status(409).json({ ok: false, error: 'That booking can no longer move to that status.' })
-    }
-    console.error('Booking status update error:', error)
-    return res.status(500).json({ ok: false, error: 'Could not update that booking.' })
-  }
-
-  // The confirmation email is the ONE point in the whole flow where the
-  // family receives the Zoom link — never at request time. A send
-  // failure here never fails the request: the status change already
-  // succeeded and is the source of truth.
-  if (body.status === 'confirmed') {
-    const zoomLink = await getZoomLink(supabase)
-    try {
-      await sendConfirmationEmail(data, zoomLink)
-    } catch (err) {
-      console.error('Confirmation email failed:', err)
-    }
-  }
-
-  if (body.status === 'declined') {
-    try {
-      await sendDeclineEmail(data)
-    } catch (err) {
-      console.error('Decline email failed:', err)
-    }
-  }
-
-  return res.status(200).json({ ok: true, booking: data })
+  return res.status(200).json({ ok: true, booking })
 }
 
 async function rescheduleBooking(res, supabase, body) {
@@ -142,44 +110,46 @@ async function rescheduleBooking(res, supabase, body) {
     return res.status(400).json({ ok: false, error: 'newSlotId is required.' })
   }
 
+  const { booking, error } = await applyReschedule(supabase, body.bookingId, body.newSlotId)
+  if (error) return res.status(error.status).json({ ok: false, error: error.message })
+
+  return res.status(200).json({ ok: true, booking })
+}
+
+async function deleteBooking(res, supabase, body) {
+  if (typeof body.bookingId !== 'string' || !body.bookingId) {
+    return res.status(400).json({ ok: false, error: 'bookingId is required.' })
+  }
+
   const { data, error } = await supabase
-    .rpc('reschedule_booking', { p_booking_id: body.bookingId, p_new_slot_id: body.newSlotId })
-    .single()
+    .from('bookings')
+    .delete()
+    .eq('id', body.bookingId)
+    .in('status', DELETABLE_STATUSES)
+    .select('id')
 
   if (error) {
-    if (error.message?.includes('booking_not_found')) {
-      return res.status(404).json({ ok: false, error: 'Booking not found.' })
-    }
-    if (error.message?.includes('not_reschedulable')) {
-      return res.status(409).json({ ok: false, error: 'That booking can no longer be rescheduled.' })
-    }
-    if (error.message?.includes('slot_not_found')) {
-      return res.status(409).json({ ok: false, error: 'That time slot no longer exists.' })
-    }
-    if (error.message?.includes('same_slot')) {
-      return res.status(400).json({ ok: false, error: 'That is already this booking’s current time.' })
-    }
-    if (error.message?.includes('slot_unavailable')) {
-      return res.status(409).json({ ok: false, error: 'That time is already taken. Please pick another.' })
-    }
-    if (error.message?.includes('slot_past_date')) {
-      return res.status(409).json({ ok: false, error: 'That date has already passed.' })
-    }
-    if (error.message?.includes('slot_past_time')) {
-      return res.status(409).json({ ok: false, error: 'That time has already passed today.' })
-    }
-    console.error('Reschedule error:', error)
-    return res.status(500).json({ ok: false, error: 'Could not reschedule that booking.' })
+    console.error('Booking delete error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not delete that booking.' })
   }
-
-  const zoomLink = await getZoomLink(supabase)
-  try {
-    await sendRescheduleEmail(data, zoomLink)
-  } catch (err) {
-    console.error('Reschedule email failed:', err)
+  if (!data?.length) {
+    return res.status(404).json({ ok: false, error: 'Booking not found, or it isn’t cancelled/declined.' })
   }
+  return res.status(200).json({ ok: true })
+}
 
-  return res.status(200).json({ ok: true, booking: data })
+async function deleteCancelledBookings(res, supabase) {
+  const { data, error } = await supabase
+    .from('bookings')
+    .delete()
+    .in('status', DELETABLE_STATUSES)
+    .select('id')
+
+  if (error) {
+    console.error('Bulk booking delete error:', error)
+    return res.status(500).json({ ok: false, error: 'Could not delete cancelled bookings.' })
+  }
+  return res.status(200).json({ ok: true, deleted: data?.length || 0 })
 }
 
 // The client's own filename is never used for the storage key — a fresh
@@ -255,6 +225,8 @@ export default async function handler(req, res) {
     if (body.action === 'booking-status') return bookingStatus(res, supabase, body)
     if (body.action === 'reschedule-booking') return rescheduleBooking(res, supabase, body)
     if (body.action === 'upload-image') return uploadImage(res, supabase, body)
+    if (body.action === 'delete-booking') return deleteBooking(res, supabase, body)
+    if (body.action === 'delete-cancelled-bookings') return deleteCancelledBookings(res, supabase)
   }
 
   res.setHeader('Allow', 'GET, POST')

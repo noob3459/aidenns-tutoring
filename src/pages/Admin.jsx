@@ -201,6 +201,46 @@ function AvailabilityTab() {
       .finally(() => setHistoryLoading(false))
   }
 
+  const [cancelledHistory, setCancelledHistory] = useState([])
+  const [cancelledLoading, setCancelledLoading] = useState(false)
+  const [cancelledError, setCancelledError] = useState('')
+
+  const loadCancelled = () => {
+    setCancelledLoading(true)
+    adminFetch('/api/admin/availability?cancelled=1')
+      .then(({ data }) => setCancelledHistory(data.bookings || []))
+      .finally(() => setCancelledLoading(false))
+  }
+
+  const deleteBooking = async (bookingId) => {
+    if (!window.confirm('Permanently delete this booking record? This can’t be undone.')) return
+    setBusy(true)
+    setCancelledError('')
+    const { data } = await adminFetch('/api/admin/content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete-booking', bookingId }),
+    })
+    setBusy(false)
+    if (!data.ok) { setCancelledError(data.error || 'Could not delete that booking.'); return }
+    setCancelledHistory((prev) => prev.filter((b) => b.id !== bookingId))
+  }
+
+  const deleteAllCancelled = async () => {
+    if (!cancelledHistory.length) return
+    if (!window.confirm(`Permanently delete all ${cancelledHistory.length} cancelled/declined booking(s)? This can’t be undone.`)) return
+    setBusy(true)
+    setCancelledError('')
+    const { data } = await adminFetch('/api/admin/content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete-cancelled-bookings' }),
+    })
+    setBusy(false)
+    if (!data.ok) { setCancelledError(data.error || 'Could not delete those bookings.'); return }
+    setCancelledHistory([])
+  }
+
   const [requests, setRequests] = useState([])
   const [requestsLoading, setRequestsLoading] = useState(false)
   const [requestError, setRequestError] = useState('')
@@ -314,6 +354,7 @@ function AvailabilityTab() {
   useEffect(() => { loadMonth(month) }, [month])
   useEffect(() => { loadRules() }, [])
   useEffect(() => { loadHistory() }, [])
+  useEffect(() => { loadCancelled() }, [])
   useEffect(() => { loadRequests() }, [])
   useEffect(() => { if (selectedDate) loadDetail(selectedDate) }, [selectedDate])
 
@@ -329,6 +370,7 @@ function AvailabilityTab() {
     loadMonth(month)
     if (selectedDate) loadDetail(selectedDate)
     loadHistory()
+    loadCancelled()
     loadRequests()
   }
 
@@ -774,6 +816,62 @@ function AvailabilityTab() {
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-ink">{b.parent_name} &middot; {b.student_name} (Grade {b.grade})</p>
                   <StatusPill status={b.status} />
+                </div>
+                <p className="text-muted text-xs mt-0.5">{b.requested_date_label} at {b.requested_time} &middot; {b.format}</p>
+                <p className="text-muted text-xs mt-0.5">{b.email} &middot; {b.phone}</p>
+                {b.notes && <p className="text-muted text-xs mt-1 italic">&ldquo;{b.notes}&rdquo;</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-10 pt-8 border-t border-divider">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <h3 className="font-display font-bold text-lg text-ink">Cancelled &amp; Declined</h3>
+          {cancelledHistory.length > 0 && (
+            <button
+              type="button"
+              onClick={deleteAllCancelled}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Clear All ({cancelledHistory.length})
+            </button>
+          )}
+        </div>
+        <p className="text-muted text-sm mb-4">
+          Bookings the admin declined or that were cancelled, most recently changed first{cancelledHistory.length >= 300 ? ' (showing the most recent 300)' : ''}. Deleting here permanently removes the record.
+        </p>
+
+        {cancelledError && (
+          <div className="mb-3 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {cancelledError}
+          </div>
+        )}
+
+        {cancelledLoading ? (
+          <div className="flex items-center gap-2 text-muted text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading&hellip;</div>
+        ) : cancelledHistory.length === 0 ? (
+          <p className="text-muted text-sm">No cancelled or declined bookings.</p>
+        ) : (
+          <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-1">
+            {cancelledHistory.map((b) => (
+              <div key={b.id} className="bg-white border border-divider rounded-xl p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-ink">{b.parent_name} &middot; {b.student_name} (Grade {b.grade})</p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusPill status={b.status} />
+                    <button
+                      type="button"
+                      onClick={() => deleteBooking(b.id)}
+                      disabled={busy}
+                      title="Delete permanently"
+                      className="text-muted hover:text-red-600 transition disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-muted text-xs mt-0.5">{b.requested_date_label} at {b.requested_time} &middot; {b.format}</p>
                 <p className="text-muted text-xs mt-0.5">{b.email} &middot; {b.phone}</p>
