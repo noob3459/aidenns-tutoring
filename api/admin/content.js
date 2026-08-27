@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { validateSettings } from '../_lib/validateSettings.js'
-import { sendConfirmationEmail, sendRescheduleEmail } from '../_lib/mailer.js'
+import { sendConfirmationEmail, sendRescheduleEmail, sendDeclineEmail } from '../_lib/mailer.js'
 
 // Consolidates admin site-settings (read/update), booking status
 // transitions, rescheduling, and Visual Editor image uploads into one
@@ -120,6 +120,14 @@ async function bookingStatus(res, supabase, body) {
       await sendConfirmationEmail(data, zoomLink)
     } catch (err) {
       console.error('Confirmation email failed:', err)
+    }
+  }
+
+  if (body.status === 'declined') {
+    try {
+      await sendDeclineEmail(data)
+    } catch (err) {
+      console.error('Decline email failed:', err)
     }
   }
 

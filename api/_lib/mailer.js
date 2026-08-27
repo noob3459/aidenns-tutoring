@@ -21,6 +21,9 @@ function getResendClient() {
 const MAIL_FROM = process.env.MAIL_FROM || 'Aidenn’s Tutoring <aidenn@aidennstutoring.org>'
 const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || 'aidenn@aidennstutoring.org'
 
+const SITE_URL = (process.env.SITE_URL || 'https://aidennstutoring.org').replace(/\/$/, '')
+const LOGO_URL = `${SITE_URL}/images/aidenns-tutoring-logo-mark.png`
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // Safely parses a comma-separated BCC address list from an env var: trims
@@ -34,6 +37,22 @@ function parseBccList(raw) {
   for (const entry of raw.split(',')) {
     const addr = entry.trim()
     if (!addr || !EMAIL_RE.test(addr)) continue
+    const key = addr.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(addr)
+  }
+  return out
+}
+
+// Recipients who should get a copy of every booking status-change email
+// (confirm / decline / reschedule) sent to a customer, so the owner always
+// has a record of what changed without having to check the admin dashboard.
+function ownerCcList() {
+  const primary = process.env.BOOKING_NOTIFICATION_TO || MAIL_REPLY_TO
+  const seen = new Set()
+  const out = []
+  for (const addr of [primary, ...parseBccList(process.env.BOOKING_NOTIFICATION_BCC)]) {
     const key = addr.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)
@@ -64,7 +83,7 @@ function wrapEmail(bodyHtml) {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;border-collapse:collapse;">
     <tr>
       <td style="background:${NAVY};border-radius:20px 20px 0 0;padding:28px 32px;text-align:center;">
-        <span style="display:inline-block;width:34px;height:34px;background:${PRIMARY};border:1px solid rgba(255,255,255,0.25);border-radius:50%;line-height:34px;color:#fff;font-weight:700;font-size:15px;">&Sigma;</span>
+        <img src="${LOGO_URL}" width="40" height="40" alt="Aidenn&rsquo;s Tutoring" style="display:inline-block;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,0.25);" />
         <div style="color:#fff;font-weight:700;font-size:16px;margin-top:12px;letter-spacing:0.01em;">Aidenn&rsquo;s Tutoring</div>
       </td>
     </tr>
@@ -171,7 +190,6 @@ export async function sendOwnerNotification(booking, zoomLink) {
 
   const html = wrapEmail([
     heading('New Free Session Request'),
-    callout('<strong>Action needed</strong> &mdash; this is a request only. Nothing is confirmed yet.'),
     summaryPills(booking),
     detailTable(rows),
     paragraph('Reply directly to this email to reach the parent, or head to the admin dashboard to confirm, reschedule, or decline.', `color:${MUTED};margin-top:20px;`),
@@ -258,8 +276,43 @@ export async function sendConfirmationEmail(booking, zoomLink) {
 
   return send({
     to: booking.email,
+    bcc: ownerCcList(),
     replyTo: MAIL_REPLY_TO,
     subject: `Confirmed: ${booking.student_name}'s session on ${booking.requested_date_label}`,
+    text,
+    html,
+  })
+}
+
+// ---------------------------------------------------------------------
+// Decline — sent to the parent whenever an admin declines a pending
+// request. BCCs the owner so there's a record of the decision.
+// ---------------------------------------------------------------------
+export async function sendDeclineEmail(booking) {
+  const text = [
+    `Hi ${booking.parent_name},`,
+    '',
+    `We're sorry, but we're unable to confirm ${booking.student_name}'s requested session for ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
+    '',
+    'Feel free to reply to this email or submit a new request for a different time — we’d love to help.',
+    '',
+    'Aidenn’s Tutoring',
+  ].join('\n')
+
+  const html = wrapEmail([
+    heading('Unable To Confirm Your Request'),
+    paragraph(`Hi ${escapeHtml(booking.parent_name)},`),
+    paragraph(`We&rsquo;re sorry, but we&rsquo;re unable to confirm <strong>${escapeHtml(booking.student_name)}</strong>&rsquo;s requested session.`),
+    summaryPills(booking),
+    callout('Feel free to reply to this email or submit a new request for a different time &mdash; we&rsquo;d love to help.', { bg: SURFACE, border: DIVIDER, color: MUTED }),
+    paragraph('Aidenn&rsquo;s Tutoring', 'margin:0;'),
+  ].join(''))
+
+  return send({
+    to: booking.email,
+    bcc: ownerCcList(),
+    replyTo: MAIL_REPLY_TO,
+    subject: `Update on your request: ${booking.student_name}'s session`,
     text,
     html,
   })
@@ -302,6 +355,7 @@ export async function sendRescheduleEmail(booking, zoomLink) {
 
   return send({
     to: booking.email,
+    bcc: ownerCcList(),
     replyTo: MAIL_REPLY_TO,
     subject: `Time changed: ${booking.student_name}'s session is now ${booking.requested_date_label}`,
     text,
