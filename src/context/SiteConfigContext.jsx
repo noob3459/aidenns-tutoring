@@ -157,19 +157,19 @@ export const DEFAULT_CONFIG = {
         title: 'Tell Me What’s Stuck', tagline: 'Two minutes, that’s it.',
         text: 'Tell me your student’s grade and exactly what they’re stuck on: a homework set, one confusing topic, a test coming up. No cost, no obligation, no catch.',
         meta: 'Step 1 / Listen',
-        imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&w=1200&q=80',
       },
       {
         title: 'I Pull Together the Right Help', tagline: 'Made for that exact problem.',
         text: 'No fixed curriculum to work through. I put together practice problems and explanations aimed at the specific thing that isn’t clicking yet.',
         meta: 'Step 2 / Plan',
-        imageUrl: 'https://images.unsplash.com/photo-1509869175650-a1d97972541a?auto=format&fit=crop&w=1200&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1769794371055-54436b54577e?auto=format&fit=crop&w=1200&q=80',
       },
       {
         title: 'Start Free Sessions', tagline: 'Online or in person.',
         text: 'Meet on a recurring weekly slot that fits your family’s schedule. Every session is completely free, this week, next month, always.',
         meta: 'Step 3 / Learn',
-        imageUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=1200&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1709880945165-d2208c6ad2ec?auto=format&fit=crop&w=1200&q=80',
       },
     ],
     trustBadges: [
