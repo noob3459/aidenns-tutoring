@@ -8,7 +8,10 @@ export default function Layout() {
   const { pathname } = useLocation()
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' })
+    // `behavior: 'instant'` (not 'auto') is required here — the site sets
+    // `scroll-behavior: smooth` globally in index.css, and 'auto' defers to
+    // that CSS property instead of jumping immediately.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
     const t1 = setTimeout(() => ScrollTrigger.refresh(), 150)
     const t2 = setTimeout(() => ScrollTrigger.refresh(), 700)
     return () => { clearTimeout(t1); clearTimeout(t2) }

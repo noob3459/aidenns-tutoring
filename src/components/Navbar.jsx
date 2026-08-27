@@ -6,7 +6,7 @@ import Editable from './editor/Editable.jsx'
 
 // Destinations stay static (not editable in v1) — only the labels shown
 // for each link are config-driven, indexed to match config.navbar.navLinks.
-const NAV_HREFS = ['/', '/services', '/approach', '/about', '/contact']
+const NAV_HREFS = ['/', '/services', '/approach', '/about', '/contact', '/donate']
 
 export default function Navbar() {
   const { config } = useSiteConfig()

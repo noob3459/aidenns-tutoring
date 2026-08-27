@@ -65,6 +65,14 @@ export const DEFAULT_CONFIG = {
       ctaLabel: 'Book a Free Session',
       prompt: '',
     },
+    donate: {
+      eyebrow: '╱ Support The Program',
+      heading1: 'Help keep it',
+      heading2: 'free.',
+      sub: 'Aidenn’s Tutoring runs entirely on donations, not tuition. Here’s where the support goes, and how to help.',
+      ctaLabel: 'Book a Free Session',
+      prompt: '',
+    },
   },
   footer: {
     tagline1: 'Math help you can',
@@ -108,12 +116,20 @@ export const DEFAULT_CONFIG = {
       { label: 'Approach' },
       { label: 'About' },
       { label: 'Contact' },
+      { label: 'Donate' },
     ],
   },
   donateBanner: {
     heading: 'Every session is 100% free.',
     description: 'Aidenn’s Tutoring is funded entirely by generous donors, not tuition. If it’s helped your family, consider chipping in to keep it free for the next one.',
     ctaLabel: 'Donate to Support a Session',
+  },
+  donate: {
+    reasons: [
+      { title: 'Every Session Stays Free', text: 'No family ever pays for a session. Donations cover tutor time so cost is never the reason a {grades} student doesn’t get help.' },
+      { title: 'More Kids Get Help Sooner', text: 'Funding opens up more weekly session slots, so students can start getting one-on-one help without sitting on a waitlist.' },
+      { title: '100% Goes To Tutoring', text: 'There’s no overhead, no administration layer, just one tutor. Your donation goes directly toward keeping sessions running.' },
+    ],
   },
   home: {
     featureCards: [

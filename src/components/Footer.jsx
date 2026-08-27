@@ -102,11 +102,11 @@ export default function Footer() {
                 </li>
               ))}
               <li>
-                <a href={`mailto:${contact.donateEmail}?subject=I%27d%20like%20to%20donate`} className="text-white/65 hover:text-accent transition text-sm">
+                <Link to="/donate" className="text-white/65 hover:text-accent transition text-sm">
                   <Editable id="footer.donateLinkLabel" as="span" contentPath="footer.donateLinkLabel" label="Footer Donate Link">
                     {footer.donateLinkLabel}
                   </Editable>
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

@@ -11,6 +11,7 @@ import Approach from './pages/Approach.jsx'
 import AboutMe from './pages/AboutMe.jsx'
 import Booking from './pages/Booking.jsx'
 import Contact from './pages/Contact.jsx'
+import Donate from './pages/Donate.jsx'
 import PrivacyPolicy from './pages/PrivacyPolicy.jsx'
 import Terms from './pages/Terms.jsx'
 import Admin from './pages/Admin.jsx'
@@ -31,6 +32,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/about" element={<AboutMe />} />
             <Route path="/booking" element={<Booking />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/donate" element={<Donate />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<Terms />} />
           </Route>

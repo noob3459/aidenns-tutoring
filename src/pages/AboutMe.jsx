@@ -12,14 +12,35 @@ import { fillGradeTemplate } from '../lib/grades.js'
 const CREDENTIAL_ICONS = [ShieldCheck, Sigma, MapPin]
 
 function Profile() {
+  const ref = useRef(null)
   const { config } = useSiteConfig()
   const about = config.about
   const g = (text) => fillGradeTemplate(text, config.booking.minGrade, config.booking.maxGrade)
 
+  useEffect(() => {
+    const identityStyle = config.elementStyles?.['about.identity'] || {}
+    const bioStyle = config.elementStyles?.['about.bio'] || {}
+    const ctx = gsap.context(() => {
+      runAnimationPreset(identityStyle.animation || 'slide-up', '.about-identity', {
+        speed: identityStyle.animationSpeed,
+        scrollTrigger: { trigger: ref.current, start: 'top 85%', once: true },
+      })
+      runAnimationPreset(bioStyle.animation || 'stagger', '.about-bio-para', {
+        speed: bioStyle.animationSpeed, stagger: 0.12, distance: 24,
+        scrollTrigger: { trigger: ref.current, start: 'top 75%', once: true },
+      })
+    }, ref)
+    return () => ctx.revert()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
-    <section className="relative px-6 sm:px-10 lg:px-16 pb-16">
+    <section ref={ref} className="relative px-6 sm:px-10 lg:px-16 pb-16">
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-10">
+        <div
+          data-editor-id="about.identity" data-editor-kind="section" data-editor-label="About Identity (Animation)"
+          className="about-identity flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-10"
+        >
           <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
             <GraduationCap className="h-10 w-10 text-primary" strokeWidth={1.8} />
           </span>
@@ -33,12 +54,12 @@ function Profile() {
           </div>
         </div>
 
-        <div className="space-y-5 max-w-2xl mx-auto sm:mx-0">
+        <div data-editor-id="about.bio" data-editor-kind="section" data-editor-label="About Bio (Animation)" className="space-y-5 max-w-2xl mx-auto sm:mx-0">
           {about.bioParagraphs.map((para, i) => (
             <Editable
               key={i} id={`about.bioParagraphs.${i}.text`} as="p" contentPath={`about.bioParagraphs.${i}.text`}
               label={`Bio Paragraph ${i + 1}`}
-              className="text-muted text-base sm:text-lg leading-relaxed"
+              className="about-bio-para text-muted text-base sm:text-lg leading-relaxed"
               deletableArrayPath="about.bioParagraphs" deletableIndex={i}
             >
               {g(para.text)}
