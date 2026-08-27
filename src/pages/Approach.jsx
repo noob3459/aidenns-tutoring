@@ -168,7 +168,7 @@ function TrustSignals() {
               <div
                 key={i}
                 data-editor-id="approach.trustSignals.badges"
-                className="trust-badge bg-white border border-divider rounded-4xl p-6 hover:border-primary/40 transition-all duration-700 ease-out shadow-sm"
+                className="trust-badge bg-white border border-divider rounded-4xl p-6 hover:border-primary/40 transition-colors duration-700 ease-out shadow-sm"
               >
                 <Icon className="h-6 w-6 text-primary mb-3" strokeWidth={1.8} />
                 <Editable id={`approach.trustBadges.${i}.title`} as="h3" contentPath={`approach.trustBadges.${i}.title`} label={`Trust Badge ${i + 1} Title`} className="font-display font-bold text-lg text-ink mb-1.5" deletableArrayPath="approach.trustBadges" deletableIndex={i}>

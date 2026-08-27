@@ -100,7 +100,7 @@ function Credentials() {
               <div
                 key={i}
                 data-editor-id="about.credentials"
-                className="credential-card bg-white border border-divider rounded-4xl p-6 hover:border-primary/40 transition-all duration-500 shadow-sm"
+                className="credential-card bg-white border border-divider rounded-4xl p-6 hover:border-primary/40 transition-colors duration-500 shadow-sm"
               >
                 {Icon && <Icon className="h-6 w-6 text-primary mb-3" strokeWidth={1.8} />}
                 <Editable id={`about.credentials.${i}.title`} as="h3" contentPath={`about.credentials.${i}.title`} label={`Credential ${i + 1} Title`} className="font-display font-bold text-lg text-ink mb-1.5" deletableArrayPath="about.credentials" deletableIndex={i}>

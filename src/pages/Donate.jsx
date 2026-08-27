@@ -38,7 +38,7 @@ function WhyDonate() {
               <div
                 key={i}
                 data-editor-id="donate.reasons"
-                className="reason-card bg-white border border-divider rounded-4xl p-7 hover:border-primary/40 transition-all duration-500 shadow-sm"
+                className="reason-card bg-white border border-divider rounded-4xl p-7 hover:border-primary/40 transition-colors duration-500 shadow-sm"
               >
                 {Icon && <Icon className="h-6 w-6 text-primary mb-3" strokeWidth={1.8} />}
                 <Editable
