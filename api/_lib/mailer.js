@@ -22,7 +22,7 @@ const MAIL_FROM = process.env.MAIL_FROM || 'Aidenn’s Tutoring <aidenn@aidennst
 const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || 'aidenn@aidennstutoring.org'
 
 const SITE_URL = (process.env.SITE_URL || 'https://aidennstutoring.org').replace(/\/$/, '')
-const LOGO_URL = `${SITE_URL}/images/aidenns-tutoring-logo-mark.png`
+const LOGO_URL = `${SITE_URL}/images/aidenns-tutoring-email-logo.png`
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -105,6 +105,17 @@ function heading(text) {
   return `<h1 style="margin:0 0 18px;font-family:${FONT};font-size:21px;font-weight:700;color:${INK};letter-spacing:-0.01em;">${escapeHtml(text)}</h1>`
 }
 
+// Short "what this is for" eyebrow shown under the heading of every
+// booking email, so the subject matter is clear at a glance without
+// having to read into the body — e.g. "Math Help · Grade 7".
+function sessionTag(booking) {
+  return `<p style="margin:-10px 0 20px;font-family:${FONT};font-size:12.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:${PRIMARY};">Math Help &middot; Grade ${escapeHtml(String(booking.grade))}</p>`
+}
+
+function sessionTagText(booking) {
+  return `Math Help · Grade ${booking.grade}`
+}
+
 function paragraph(html, extraStyle = '') {
   return `<p style="margin:0 0 16px;font-family:${FONT};font-size:15px;line-height:1.6;color:${INK};${extraStyle}">${html}</p>`
 }
@@ -122,7 +133,6 @@ function button(href, label, { bg = PRIMARY } = {}) {
 // rather than a plain label:value table.
 function summaryPills(booking) {
   const pills = [
-    `Grade ${booking.grade}`,
     booking.format,
     `${booking.requested_date_label} &middot; ${booking.requested_time}`,
   ]
@@ -182,7 +192,8 @@ export async function sendOwnerNotification(booking, zoomLink) {
   const text = [
     'New free session request. Action needed to confirm.',
     '',
-    `Grade ${booking.grade} · ${booking.format} · ${booking.requested_date_label} at ${booking.requested_time}`,
+    sessionTagText(booking),
+    `${booking.format} · ${booking.requested_date_label} at ${booking.requested_time}`,
     ...rows.map(([label, value]) => `${label}: ${value}`),
     '',
     'This is a REQUEST only. Reply to this email (goes straight to the parent) or use the admin dashboard to confirm, reschedule, or decline.',
@@ -190,6 +201,7 @@ export async function sendOwnerNotification(booking, zoomLink) {
 
   const html = wrapEmail([
     heading('New Free Session Request'),
+    sessionTag(booking),
     summaryPills(booking),
     detailTable(rows),
     paragraph('Reply directly to this email to reach the parent, or head to the admin dashboard to confirm, reschedule, or decline.', `color:${MUTED};margin-top:20px;`),
@@ -217,6 +229,7 @@ export async function sendParentReceipt(booking) {
   const text = [
     `Hi ${booking.parent_name},`,
     '',
+    sessionTagText(booking),
     `Thanks for requesting a free math session for ${booking.student_name} (Grade ${booking.grade}) on ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
     '',
     'Your request has been received, but it is NOT confirmed yet. Aidenn personally reviews and confirms every session — you’ll hear back directly (with the Zoom link, if online) once it’s confirmed.',
@@ -228,6 +241,7 @@ export async function sendParentReceipt(booking) {
 
   const html = wrapEmail([
     heading('Request Received!'),
+    sessionTag(booking),
     paragraph(`Hi ${escapeHtml(booking.parent_name)},`),
     paragraph(`Thanks for requesting a free math session for <strong>${escapeHtml(booking.student_name)}</strong>.`),
     summaryPills(booking),
@@ -256,6 +270,7 @@ export async function sendConfirmationEmail(booking, zoomLink) {
   const text = [
     `Hi ${booking.parent_name},`,
     '',
+    sessionTagText(booking),
     `Good news — ${booking.student_name}'s free math session is confirmed for ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
     ...(includeZoom ? ['', `Join here: ${zoomLink}`] : []),
     '',
@@ -266,6 +281,7 @@ export async function sendConfirmationEmail(booking, zoomLink) {
 
   const html = wrapEmail([
     heading('Your Session Is Confirmed!'),
+    sessionTag(booking),
     paragraph(`Hi ${escapeHtml(booking.parent_name)},`),
     paragraph(`Good news — <strong>${escapeHtml(booking.student_name)}</strong>'s free math session is confirmed.`),
     summaryPills(booking),
@@ -292,6 +308,7 @@ export async function sendDeclineEmail(booking) {
   const text = [
     `Hi ${booking.parent_name},`,
     '',
+    sessionTagText(booking),
     `We're sorry, but we're unable to confirm ${booking.student_name}'s requested session for ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
     '',
     'Feel free to reply to this email or submit a new request for a different time — we’d love to help.',
@@ -301,6 +318,7 @@ export async function sendDeclineEmail(booking) {
 
   const html = wrapEmail([
     heading('Unable To Confirm Your Request'),
+    sessionTag(booking),
     paragraph(`Hi ${escapeHtml(booking.parent_name)},`),
     paragraph(`We&rsquo;re sorry, but we&rsquo;re unable to confirm <strong>${escapeHtml(booking.student_name)}</strong>&rsquo;s requested session.`),
     summaryPills(booking),
@@ -331,6 +349,7 @@ export async function sendRescheduleEmail(booking, zoomLink) {
   const text = [
     `Hi ${booking.parent_name},`,
     '',
+    sessionTagText(booking),
     `${booking.student_name}'s free math session has been moved to a new time: ${booking.requested_date_label} at ${booking.requested_time}, ${booking.format.toLowerCase()}.`,
     booking.status === 'confirmed' ? 'This session is confirmed.' : 'This session is still pending confirmation.',
     ...(includeZoom ? ['', `Join here: ${zoomLink}`] : []),
@@ -342,6 +361,7 @@ export async function sendRescheduleEmail(booking, zoomLink) {
 
   const html = wrapEmail([
     heading('Your Session Time Has Changed'),
+    sessionTag(booking),
     paragraph(`Hi ${escapeHtml(booking.parent_name)},`),
     paragraph(`<strong>${escapeHtml(booking.student_name)}</strong>'s free math session has been moved to a new time.`),
     summaryPills(booking),
