@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/study", "destination": "https://study-buddy-rho-nine.vercel.app/study" },
+    { "source": "/study/:path*", "destination": "https://study-buddy-rho-nine.vercel.app/study/:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
